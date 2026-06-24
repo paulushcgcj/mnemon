@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Mnemon — post-commit hook
+set -euo pipefail
+mnemon log-commit 2>/dev/null || true
