@@ -297,10 +297,11 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
 @click.option("--cwd",     default=None)
 @click.option("--project", default=None, help="Override project_id (owner/repo)")
 @click.option("--branch",  default=None, help="Override branch name")
+@click.option("--db-path", default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format",  default="text", help="Output format (text or json)")
 @click.option("--out",     default=None, type=click.Path(), help="Output file path (default: stdout)")
 def read(cwd: str | None, project: str | None, branch: str | None, 
-         format: str, out: str | None) -> None:
+         db_path: str | None, format: str, out: str | None) -> None:
     """
     Print the full context block — what the AI sees at session start.
 
@@ -318,7 +319,7 @@ def read(cwd: str | None, project: str | None, branch: str | None,
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
             _branch    = branch  or get_branch(_cwd)
-            async with get_db() as db:
+            async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 await upsert_project(db, project_id)
                 context = await build_context(db, project_id, _branch)
@@ -348,11 +349,12 @@ def read(cwd: str | None, project: str | None, branch: str | None,
               help="Filter entities at or above this importance (0.0–1.0)")
 @click.option("--type",    "entity_type", default=None,
               help="Filter by entity type: component, concept, person, file, system")
+@click.option("--db-path", default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format",  default="text", help="Output format (text or json)")
 @click.option("--out",     default=None, type=click.Path(), help="Output file path (default: stdout)")
 def graph(cwd: str | None, project: str | None,
           importance_min: float, entity_type: str | None,
-          format: str, out: str | None) -> None:
+          db_path: str | None, format: str, out: str | None) -> None:
     """
     Print the knowledge graph for a project.
 
@@ -371,7 +373,7 @@ def graph(cwd: str | None, project: str | None,
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
 
-            async with get_db() as db:
+            async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 entities = await list_entities(db, project_id, entity_type=entity_type)
                 entities = [e for e in entities if e["importance"] >= importance_min]
@@ -433,11 +435,12 @@ def graph(cwd: str | None, project: str | None,
               help="Only remove entities not updated in this many days (default: 30)")
 @click.option("--dry-run",  is_flag=True,
               help="Preview what would be removed without deleting")
+@click.option("--db-path",  default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format",   default="text", help="Output format (text or json)")
 @click.option("--out",      default=None, type=click.Path(), help="Output file path (default: stdout)")
 def prune(cwd: str | None, project: str | None,
           below: float, days: int, dry_run: bool,
-          format: str, out: str | None) -> None:
+          db_path: str | None, format: str, out: str | None) -> None:
     """
     Remove stale low-importance entities from the knowledge graph.
     Only removes entities that are BOTH low-importance AND old.
@@ -457,7 +460,7 @@ def prune(cwd: str | None, project: str | None,
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
 
-            async with get_db() as db:
+            async with get_db(path=db_path) as db:
                 await run_migrations(db)
 
                 if dry_run:
@@ -527,9 +530,10 @@ def prune(cwd: str | None, project: str | None,
 # ── projects ──────────────────────────────────────────────────────────────────
 
 @cli.command("projects")
+@click.option("--db-path", default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format", default="text", help="Output format (text or json)")
 @click.option("--out",    default=None, type=click.Path(), help="Output file path (default: stdout)")
-def projects(format: str, out: str | None) -> None:
+def projects(db_path: str | None, format: str, out: str | None) -> None:
     """
     List all projects in the memory store.
 
@@ -543,7 +547,7 @@ def projects(format: str, out: str | None) -> None:
         validate_format(format)
         
         async def _run() -> None:
-            async with get_db() as db:
+            async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 rows = await list_projects(db)
                 
