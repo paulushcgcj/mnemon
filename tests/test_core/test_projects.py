@@ -21,7 +21,7 @@ class TestProjects:
         test_project_id = "url-test-owner/url-test-repo"
         git_url = "https://github.com/test-owner/test-repo.git"
         
-        await upsert_project(db, test_project_id, git_url)
+        await upsert_project(db, test_project_id, git_url=git_url)
         
         projects = await list_projects(db)
         matching = [p for p in projects if p["id"] == test_project_id]
@@ -45,8 +45,8 @@ class TestProjects:
         git_url1 = "https://github.com/test-owner/test-repo.git"
         git_url2 = "https://github.com/test-owner/test-repo-new.git"
         
-        await upsert_project(db, test_project_id, git_url1)
-        await upsert_project(db, test_project_id, git_url2)
+        await upsert_project(db, test_project_id, git_url=git_url1)
+        await upsert_project(db, test_project_id, git_url=git_url2)
         
         projects = await list_projects(db)
         matching = [p for p in projects if p["id"] == test_project_id]

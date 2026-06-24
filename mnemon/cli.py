@@ -12,7 +12,13 @@ from .core.context import build_context
 from .core.git import get_branch, get_commit_context, get_project_id
 from .core.memory import add_session_log
 from .core.graph import get_full_graph, prune_entities, list_entities
-from .core.projects import upsert_project, list_projects
+from .core.projects import (
+    upsert_project, 
+    list_projects,
+    get_project_children,
+    set_project_parent,
+    get_project_tree,
+)
 from .commands._utils import (
     CLIError, load_file, write_output, format_error, handle_cli_error,
     get_project_id_from_cwd, get_branch_from_cwd, validate_format
@@ -575,6 +581,100 @@ def projects(db_path: str | None, format: str, out: str | None) -> None:
                             parent = f"  (parent: {p['parent_id']})" if p.get("parent_id") else ""
                             lines.append(f"  {p['id']}{parent}")
                         output = "\n".join(lines) if lines else "No projects found."
+                
+                write_output(output, Path(out) if out else None, format)
+
+        asyncio.run(_run())
+    except CLIError as e:
+        handle_cli_error(e)
+    except Exception as e:
+        handle_cli_error(e)
+
+
+# ── Parent-ID Support Commands ──────────────────────────────────────────────────
+
+@cli.command("project-set-parent")
+@click.option("--project", required=True, help="Project ID (owner/repo)")
+@click.option("--parent", default=None, help="Parent project ID (omit to remove parent)")
+@click.option("--db-path", default=None, help="Database path")
+@click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
+@click.option("--out", default=None, type=click.Path(), help="Output file path")
+def project_set_parent_cli(project: str, parent: Optional[str], db_path: Optional[str], format: str, out: Optional[str]) -> None:
+    """Set the parent project for a project."""
+    try:
+        async def _run() -> None:
+            async with get_db(path=db_path) as db:
+                await run_migrations(db)
+                ok = await set_project_parent(db, project, parent)
+                if ok:
+                    action = "set" if parent else "removed"
+                    output = f"Project '{project}' parent {action}."
+                else:
+                    output = f"Project '{project}' not found."
+                    raise CLIError(output)
+                
+                write_output(output, Path(out) if out else None, format)
+
+        asyncio.run(_run())
+    except CLIError as e:
+        handle_cli_error(e)
+    except Exception as e:
+        handle_cli_error(e)
+
+
+@cli.command("project-children")
+@click.option("--project", required=True, help="Parent project ID")
+@click.option("--recursive", is_flag=True, help="Include all descendants")
+@click.option("--db-path", default=None, help="Database path")
+@click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
+@click.option("--out", default=None, type=click.Path(), help="Output file path")
+def project_children_cli(project: str, recursive: bool, db_path: Optional[str], format: str, out: Optional[str]) -> None:
+    """List child projects of a project."""
+    try:
+        async def _run() -> None:
+            async with get_db(path=db_path) as db:
+                await run_migrations(db)
+                children = await get_project_children(db, project, recursive=recursive)
+                if not children:
+                    output = f"No children found for project '{project}'."
+                else:
+                    output = "\n".join(f"  - {c['id']}" for c in children)
+                
+                write_output(output, Path(out) if out else None, format)
+
+        asyncio.run(_run())
+    except CLIError as e:
+        handle_cli_error(e)
+    except Exception as e:
+        handle_cli_error(e)
+
+
+@cli.command("project-tree")
+@click.option("--project", default=None, help="Root project ID (default: all root projects)")
+@click.option("--db-path", default=None, help="Database path")
+@click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
+@click.option("--out", default=None, type=click.Path(), help="Output file path")
+def project_tree_cli(project: Optional[str], db_path: Optional[str], format: str, out: Optional[str]) -> None:
+    """Display the project hierarchy as a tree."""
+    try:
+        async def _run() -> None:
+            async with get_db(path=db_path) as db:
+                await run_migrations(db)
+                tree = await get_project_tree(db, project)
+                
+                def print_tree(nodes, indent=0):
+                    lines = []
+                    for node in nodes:
+                        prefix = "  " * indent
+                        lines.append(f"{prefix}- {node['id']}")
+                        if node.get("children"):
+                            lines.extend(print_tree(node["children"], indent + 1))
+                    return lines
+                
+                if not tree:
+                    output = "No projects found."
+                else:
+                    output = "\n".join(print_tree(tree))
                 
                 write_output(output, Path(out) if out else None, format)
 
