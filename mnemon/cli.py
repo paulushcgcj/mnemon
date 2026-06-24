@@ -205,9 +205,10 @@ def install(cwd: str | None, force: bool, format: str, out: str | None) -> None:
 
 @cli.command("log-commit")
 @click.option("--cwd", default=None)
+@click.option("--db-path", default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format", default="text", help="Output format (text or json)")
 @click.option("--out",    default=None, type=click.Path(), help="Output file path (default: stdout)")
-def log_commit(cwd: str | None, format: str, out: str | None) -> None:
+def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | None) -> None:
     """
     Log the latest commit. Called automatically by git hooks.
 
@@ -239,12 +240,30 @@ def log_commit(cwd: str | None, format: str, out: str | None) -> None:
                 write_output(output, Path(out) if out else None, format)
                 return
 
+            # Build summary
+            files_count = len(ctx['files'])
             summary = (
                 f"{ctx['message'].splitlines()[0]}"
-                f" ({len(ctx['files'])} files)"
-                f" by {ctx['author']}"
+                + (f" ({files_count} files)" if files_count > 0 else "")
+                + (f" by {ctx['author']}" if ctx['author'] else "")
             )
-            async with get_db() as db:
+            
+            # Only log if there's meaningful content
+            if not ctx['message'].strip():
+                if format == "json":
+                    import json
+                    output = json.dumps({
+                        "error": "Skipped: empty commit message",
+                        "projectId": None,
+                        "branch": None,
+                        "commitSha": None
+                    }, indent=2)
+                else:
+                    output = "[mnemon] Skipped: empty commit message"
+                write_output(output, Path(out) if out else None, format)
+                return
+            
+            async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 await upsert_project(db, project_id)
                 await add_session_log(db, project_id, summary,
