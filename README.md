@@ -1,5 +1,7 @@
 # Mnemon
 
+[![PyPI version](https://badge.fury.io/py/mnemon.svg)](https://badge.fury.io/py/mnemon)
+
 Persistent project memory and a scoped knowledge graph for AI coding agents.
 
 Mnemon helps an AI coding agent remember what matters between sessions: what the project is, what branch is being worked on, what decisions were made, what tasks are still open, and which components or concepts are important in the codebase.
@@ -57,10 +59,34 @@ Important graph entities are automatically included in the session-start context
 
 Mnemon requires Python 3.11 or newer.
 
-From this repository:
+### From PyPI (Recommended)
 
 ```bash
-uv tool install .
+# Persistent installation
+uv tool install mnemon
+
+# Or with pip
+pip install mnemon
+```
+
+### One-off Usage
+
+```bash
+# Run a command without permanent installation
+uvx mnemon read --help
+uvx mnemon log "Added new feature"
+```
+
+### From Source (Development)
+
+```bash
+# Clone the repository
+git clone https://github.com/paulushcgcj/mnemon.git
+cd mnemon
+
+# Install in development mode
+uv sync
+uv tool install -e .
 ```
 
 During development, you can also run it directly with:
