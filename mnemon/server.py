@@ -16,7 +16,13 @@ from .core.graph import (
     search_entities, get_full_graph, prune_entities,
     get_entity_by_name, get_observations, get_relations_for,
 )
-from .core.projects import list_projects, upsert_project
+from .core.projects import (
+    list_projects, 
+    upsert_project,
+    get_project_children,
+    set_project_parent,
+    get_project_tree,
+)
 
 mcp = FastMCP("mnemon")
 
@@ -161,6 +167,78 @@ async def memory_project_list(parent_id: Optional[str] = None) -> str:
             f"- {p['id']}" + (f" (parent: {p['parent_id']})" if p.get("parent_id") else "")
             for p in projects
         )
+
+
+@mcp.tool()
+async def project_set_parent(
+    project_id: str,
+    parent_id: Optional[str] = None,
+) -> str:
+    """
+    Set the parent project for a project.
+    
+    Use this to organize projects hierarchically. For example:
+    - parent_id: "org/main-repo" for a monorepo
+    - parent_id: "org/api" for a service that's part of the API
+    
+    Set parent_id to None to make the project a root project.
+    """
+    async with get_db() as db:
+        await run_migrations(db)
+        ok = await set_project_parent(db, project_id, parent_id)
+        if ok:
+            return f"Project '{project_id}' parent {'set' if parent_id else 'removed'}."
+        else:
+            return f"Project '{project_id}' not found."
+
+
+@mcp.tool()
+async def project_list_children(
+    project_id: str,
+    recursive: bool = False,
+) -> str:
+    """
+    List child projects of a project.
+    
+    project_id: The parent project to list children for
+    recursive: If True, includes all descendants (children of children, etc.)
+    """
+    async with get_db() as db:
+        await run_migrations(db)
+        children = await get_project_children(db, project_id, recursive=recursive)
+        if not children:
+            return f"No children found for project '{project_id}'."
+        return "\n".join(f"- {c['id']}" for c in children)
+
+
+@mcp.tool()
+async def project_list_tree(
+    project_id: Optional[str] = None,
+) -> str:
+    """
+    Get the project hierarchy as a tree.
+    
+    project_id: Root project ID. If omitted, returns all root projects.
+    
+    Returns a nested tree structure showing the project hierarchy.
+    """
+    async with get_db() as db:
+        await run_migrations(db)
+        tree = await get_project_tree(db, project_id)
+        
+        def format_tree(nodes, indent=0):
+            lines = []
+            for node in nodes:
+                prefix = "  " * indent
+                lines.append(f"{prefix}- {node['id']}")
+                if node.get("children"):
+                    lines.extend(format_tree(node["children"], indent + 1))
+            return lines
+        
+        if not tree:
+            return "No projects found."
+        
+        return "\n".join(format_tree(tree))
 
 
 # ── Knowledge graph tools ─────────────────────────────────────────────────────
