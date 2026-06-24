@@ -3,25 +3,23 @@
 import pytest
 
 from mnemon.core.constants import (
-    # Entity types
-    ENTITY_TYPES,
-    validate_entity_type,
-    # Importance
-    validate_importance,
-    # Task statuses
-    TASK_STATUSES,
-    validate_task_status,
+    # Thresholds
+    CONTEXT_IMPORTANCE_THRESHOLD,
     # Default values
     DEFAULT_ENTITY_TYPE,
     DEFAULT_IMPORTANCE,
     DEFAULT_TASK_STATUS,
-    DEFAULT_OBSERVATION_SOURCE,
-    DEFAULT_SESSION_LOG_SOURCE,
-    # Thresholds
-    CONTEXT_IMPORTANCE_THRESHOLD,
     # Icons
     ENTITY_ICON,
+    # Entity types
+    ENTITY_TYPES,
     STATUS_ICON,
+    # Task statuses
+    TASK_STATUSES,
+    validate_entity_type,
+    # Importance
+    validate_importance,
+    validate_task_status,
 )
 
 

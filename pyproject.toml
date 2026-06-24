@@ -43,13 +43,14 @@ test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
+    "pytest-mock>=3.14.0",
 ]
 
 [project.scripts]
 mnemon = "mnemon.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["mnemon"]
+packages = ["src/mnemon"]
 
 [tool.uv]
 package = true
@@ -78,6 +79,8 @@ ignore_missing_imports = true
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -91,8 +94,16 @@ ignore = [
     "E501",  # line too long (handled by black)
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["mnemon"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/mnemon"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95
 
 [dependency-groups]
 dev = [

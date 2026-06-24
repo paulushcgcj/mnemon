@@ -1,11 +1,7 @@
 """Tests for git utilities."""
 
-import pytest
-import os
-import tempfile
-import subprocess
 
-from mnemon.core.git import get_project_id, get_branch, get_commit_context
+from mnemon.core.git import get_branch, get_commit_context
 
 
 class TestGetProjectId:
