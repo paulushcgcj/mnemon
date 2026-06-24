@@ -1,7 +1,7 @@
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from .db.connection import get_db
 from .db.migrations import run_migrations
@@ -33,6 +33,12 @@ class TaskInput(BaseModel):
     status: str = "todo"
     notes: Optional[str] = None
     is_global: bool = False
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        from .core.constants import validate_task_status
+        return validate_task_status(v)
 
 
 # ── Session memory tools ──────────────────────────────────────────────────────
@@ -73,6 +79,9 @@ async def memory_summarize(
     tasks_done:    Task IDs (from memory_read) to mark done.
     tasks_new:     New tasks discovered this session.
     """
+    # Input validation
+    from .core.constants import validate_task_status
+    
     async with get_db() as db:
         await run_migrations(db)
         await upsert_project(db, project_id)
@@ -84,9 +93,11 @@ async def memory_summarize(
         for tid in tasks_done:
             await update_task(db, tid, "done")
         for t in tasks_new:
+            # Validate task status (though TaskInput should already validate this)
+            validated_status = validate_task_status(t.status)
             await add_task(db, project_id, t.title,
                            branch=None if t.is_global else branch,
-                           notes=t.notes, status=t.status)
+                           notes=t.notes, status=validated_status)
     return "Memory updated."
 
 
@@ -99,6 +110,10 @@ async def memory_task_update(
     status: 'todo' | 'in-progress' | 'done' | 'blocked'
     Use task IDs from memory_read (shown in backticks).
     """
+    # Input validation
+    from .core.constants import validate_task_status
+    status = validate_task_status(status)
+    
     async with get_db() as db:
         await run_migrations(db)
         ok = await update_task(db, task_id, status, notes)
@@ -168,6 +183,11 @@ async def graph_entity_upsert(
                   Use 0.8+ for core architectural components, 0.3 for minor utilities.
     branch:       Omit for project-wide entities. Set for branch-specific knowledge.
     """
+    # Input validation
+    from .core.constants import validate_entity_type, validate_importance
+    entity_type = validate_entity_type(entity_type)
+    importance = validate_importance(importance)
+    
     async with get_db() as db:
         await run_migrations(db)
         await upsert_project(db, project_id)
