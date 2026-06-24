@@ -1,0 +1,10 @@
+{
+  "sessionId": "test-session-1",
+  "projectId": "test/project",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "lastUpdated": "2024-01-01T00:00:00Z",
+  "context": "Test context",
+  "entities": [],
+  "decisions": [],
+  "tasks": []
+}

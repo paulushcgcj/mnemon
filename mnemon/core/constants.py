@@ -8,7 +8,7 @@ All magic strings and valid value sets should be defined here.
 
 ENTITY_TYPES = {
     "component",
-    "concept", 
+    "concept",
     "person",
     "file",
     "system",
@@ -93,13 +93,13 @@ ENTITY_ICON = {
 def validate_entity_type(entity_type: str | None) -> str:
     """
     Validate entity type.
-    
+
     Args:
         entity_type: The entity type to validate
-        
+
     Returns:
         The validated entity type
-        
+
     Raises:
         ValueError: If entity_type is not in ENTITY_TYPES
     """
@@ -117,13 +117,13 @@ def validate_entity_type(entity_type: str | None) -> str:
 def validate_task_status(status: str | None) -> str:
     """
     Validate task status.
-    
+
     Args:
         status: The status to validate
-        
+
     Returns:
         The validated status
-        
+
     Raises:
         ValueError: If status is not in TASK_STATUSES
     """
@@ -141,13 +141,13 @@ def validate_task_status(status: str | None) -> str:
 def validate_importance(importance: float | None) -> float:
     """
     Validate importance value.
-    
+
     Args:
         importance: The importance value to validate
-        
+
     Returns:
         The validated importance (clamped to range)
-        
+
     Raises:
         ValueError: If importance is not between MIN_IMPORTANCE and MAX_IMPORTANCE
     """

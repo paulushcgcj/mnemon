@@ -1,11 +1,10 @@
 import aiosqlite
 
 from .constants import (
-    DEFAULT_TASK_STATUS,
     DEFAULT_SESSION_LOG_SOURCE,
+    DEFAULT_TASK_STATUS,
     validate_task_status,
 )
-
 
 # ── Project state ─────────────────────────────────────────────────────────────
 
@@ -84,7 +83,7 @@ async def add_decision(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]
+        return row[0]  # type: ignore[index,no-any-return]
 
 
 async def get_decisions(
@@ -124,7 +123,7 @@ async def add_task(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]
+        return row[0]  # type: ignore[index,no-any-return]
 
 
 async def update_task(
@@ -135,7 +134,7 @@ async def update_task(
 ) -> bool:
     # Validate status
     status = validate_task_status(status)
-    
+
     result = await db.execute(
         """
         UPDATE tasks

@@ -1,28 +1,37 @@
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, field_validator
 
-from .db.connection import get_db
-from .db.migrations import run_migrations
 from .core.context import build_context
-from .core.memory import (
-    add_decision, add_session_log, add_task,
-    update_task, upsert_branch_state, upsert_project_state,
-)
 from .core.graph import (
-    upsert_entity, add_observation, add_relation,
-    delete_entity, delete_observation, delete_relation,
-    search_entities, get_full_graph, prune_entities,
-    get_entity_by_name, get_observations, get_relations_for,
+    add_observation,
+    add_relation,
+    delete_entity,
+    delete_observation,
+    get_entity_by_name,
+    get_full_graph,
+    get_observations,
+    get_relations_for,
+    search_entities,
+    upsert_entity,
+)
+from .core.memory import (
+    add_decision,
+    add_session_log,
+    add_task,
+    update_task,
+    upsert_branch_state,
+    upsert_project_state,
 )
 from .core.projects import (
-    list_projects, 
-    upsert_project,
     get_project_children,
-    set_project_parent,
     get_project_tree,
+    list_projects,
+    set_project_parent,
+    upsert_project,
 )
+from .db.connection import get_db
+from .db.migrations import run_migrations
 
 mcp = FastMCP("mnemon")
 
@@ -37,9 +46,9 @@ class DecisionInput(BaseModel):
 class TaskInput(BaseModel):
     title: str
     status: str = "todo"
-    notes: Optional[str] = None
+    notes: str | None = None
     is_global: bool = False
-    
+
     @field_validator('status')
     @classmethod
     def validate_status(cls, v: str) -> str:
@@ -71,9 +80,9 @@ async def memory_summarize(
     summary: str,
     current_focus: str,
     next_steps: str,
-    decisions: list[DecisionInput] = [],
-    tasks_done: list[str] = [],
-    tasks_new: list[TaskInput] = [],
+    decisions: list[DecisionInput] | None = None,
+    tasks_done: list[str] | None = None,
+    tasks_new: list[TaskInput] | None = None,
 ) -> str:
     """
     Call at the END of every session — always, even if the user doesn't ask.
@@ -87,7 +96,15 @@ async def memory_summarize(
     """
     # Input validation
     from .core.constants import validate_task_status
-    
+
+    # Initialize mutable defaults
+    if decisions is None:
+        decisions = []
+    if tasks_done is None:
+        tasks_done = []
+    if tasks_new is None:
+        tasks_new = []
+
     async with get_db() as db:
         await run_migrations(db)
         await upsert_project(db, project_id)
@@ -109,7 +126,7 @@ async def memory_summarize(
 
 @mcp.tool()
 async def memory_task_update(
-    task_id: str, status: str, notes: Optional[str] = None
+    task_id: str, status: str, notes: str | None = None
 ) -> str:
     """
     Update a task status mid-session.
@@ -119,7 +136,7 @@ async def memory_task_update(
     # Input validation
     from .core.constants import validate_task_status
     status = validate_task_status(status)
-    
+
     async with get_db() as db:
         await run_migrations(db)
         ok = await update_task(db, task_id, status, notes)
@@ -139,9 +156,13 @@ async def memory_project_set_context(project_id: str, context: str) -> str:
 @mcp.tool()
 async def memory_log_commit(
     project_id: str, branch: str, sha: str, message: str,
-    author: str = "", files: list[str] = [],
+    author: str = "", files: list[str] | None = None,
 ) -> str:
     """Log a git commit to session history. Called by the git hook, not the AI."""
+
+    if files is None:
+        files = []
+
     async with get_db() as db:
         await run_migrations(db)
         await upsert_project(db, project_id)
@@ -156,7 +177,7 @@ async def memory_log_commit(
 
 
 @mcp.tool()
-async def memory_project_list(parent_id: Optional[str] = None) -> str:
+async def memory_project_list(parent_id: str | None = None) -> str:
     """List all known projects, optionally filtered by parent."""
     async with get_db() as db:
         await run_migrations(db)
@@ -172,15 +193,15 @@ async def memory_project_list(parent_id: Optional[str] = None) -> str:
 @mcp.tool()
 async def project_set_parent(
     project_id: str,
-    parent_id: Optional[str] = None,
+    parent_id: str | None = None,
 ) -> str:
     """
     Set the parent project for a project.
-    
+
     Use this to organize projects hierarchically. For example:
     - parent_id: "org/main-repo" for a monorepo
     - parent_id: "org/api" for a service that's part of the API
-    
+
     Set parent_id to None to make the project a root project.
     """
     async with get_db() as db:
@@ -199,7 +220,7 @@ async def project_list_children(
 ) -> str:
     """
     List child projects of a project.
-    
+
     project_id: The parent project to list children for
     recursive: If True, includes all descendants (children of children, etc.)
     """
@@ -213,19 +234,19 @@ async def project_list_children(
 
 @mcp.tool()
 async def project_list_tree(
-    project_id: Optional[str] = None,
+    project_id: str | None = None,
 ) -> str:
     """
     Get the project hierarchy as a tree.
-    
+
     project_id: Root project ID. If omitted, returns all root projects.
-    
+
     Returns a nested tree structure showing the project hierarchy.
     """
     async with get_db() as db:
         await run_migrations(db)
         tree = await get_project_tree(db, project_id)
-        
+
         def format_tree(nodes, indent=0):
             lines = []
             for node in nodes:
@@ -234,10 +255,10 @@ async def project_list_tree(
                 if node.get("children"):
                     lines.extend(format_tree(node["children"], indent + 1))
             return lines
-        
+
         if not tree:
             return "No projects found."
-        
+
         return "\n".join(format_tree(tree))
 
 
@@ -248,24 +269,28 @@ async def graph_entity_upsert(
     project_id: str,
     name: str,
     entity_type: str,
-    observations: list[str] = [],
+    observations: list[str] | None = None,
     importance: float = 0.5,
-    branch: Optional[str] = None,
+    branch: str | None = None,
 ) -> str:
     """
     Create or update a named entity and add observations to it.
+
     name:         Unique identifier for this entity within the project, e.g. 'WasteVolumeController'
     entity_type:  'component' | 'concept' | 'person' | 'file' | 'system' | 'custom'
     observations: List of facts to record, e.g. ["handles CRUD for waste volumes", "uses JPA"]
-    importance:   0.0–1.0 — controls whether this entity surfaces in memory_read context.
+    importance:   0.0-1.0 - controls whether this entity surfaces in memory_read context.
                   Use 0.8+ for core architectural components, 0.3 for minor utilities.
     branch:       Omit for project-wide entities. Set for branch-specific knowledge.
     """
+    if observations is None:
+        observations = []
+
     # Input validation
     from .core.constants import validate_entity_type, validate_importance
     entity_type = validate_entity_type(entity_type)
     importance = validate_importance(importance)
-    
+
     async with get_db() as db:
         await run_migrations(db)
         await upsert_project(db, project_id)
@@ -324,7 +349,7 @@ async def graph_relate(
 async def graph_search(
     project_id: str,
     query: str,
-    entity_type: Optional[str] = None,
+    entity_type: str | None = None,
     limit: int = 10,
 ) -> str:
     """
@@ -354,7 +379,7 @@ async def graph_search(
 @mcp.tool()
 async def graph_read(
     project_id: str,
-    branch: Optional[str] = None,
+    branch: str | None = None,
     importance_min: float = 0.0,
 ) -> str:
     """
@@ -390,7 +415,7 @@ async def graph_read(
 async def graph_forget(
     project_id: str,
     entity_name: str,
-    observation_id: Optional[str] = None,
+    observation_id: str | None = None,
 ) -> str:
     """
     Remove an entity entirely, or remove a specific observation from it.

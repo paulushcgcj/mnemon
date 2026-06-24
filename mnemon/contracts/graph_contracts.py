@@ -4,7 +4,7 @@ Graph Contracts
 Pydantic models for knowledge graph-related JSON output.
 """
 
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +13,7 @@ class GraphEntity(BaseModel):
     GraphEntity
     ==========
     A single entity in the knowledge graph for JSON output.
-    
+
     Args:
         id: Unique entity identifier
         projectId: Associated project ID
@@ -31,7 +31,7 @@ class GraphEntity(BaseModel):
     name: str = Field(..., serialization_alias="name")
     entityType: str = Field(..., serialization_alias="entityType")
     importance: float = Field(..., serialization_alias="importance")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    branch: str | None = Field(None, serialization_alias="branch")
     observations: list[str] = Field(default_factory=list, serialization_alias="observations")
     relations: list[dict] = Field(default_factory=list, serialization_alias="relations")
     createdAt: str = Field(..., serialization_alias="createdAt")
@@ -43,7 +43,7 @@ class GraphRelation(BaseModel):
     GraphRelation
     =============
     A single relation in the knowledge graph.
-    
+
     Args:
         id: Unique relation identifier
         projectId: Associated project ID
@@ -65,7 +65,7 @@ class GraphResult(BaseModel):
     GraphResult
     ==========
     Complete graph result with entities and relations.
-    
+
     Args:
         projectId: Associated project ID
         branch: Branch name (null for project-wide)
@@ -75,7 +75,7 @@ class GraphResult(BaseModel):
         relationCount: Total number of relations
     """
     projectId: str = Field(..., serialization_alias="projectId")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    branch: str | None = Field(None, serialization_alias="branch")
     entities: list[GraphEntity] = Field(default_factory=list, serialization_alias="entities")
     relations: list[GraphRelation] = Field(default_factory=list, serialization_alias="relations")
     entityCount: int = Field(..., serialization_alias="entityCount")
@@ -87,7 +87,7 @@ class EntitySearchResult(BaseModel):
     EntitySearchResult
     ==================
     Results from searching entities in the knowledge graph.
-    
+
     Args:
         query: The search query
         projectId: Associated project ID
@@ -107,7 +107,7 @@ class GraphPruneResult(BaseModel):
     GraphPruneResult
     ================
     Result of pruning stale entities from the knowledge graph.
-    
+
     Args:
         projectId: Associated project ID
         prunedCount: Number of entities pruned

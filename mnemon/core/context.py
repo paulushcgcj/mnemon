@@ -1,11 +1,14 @@
 import aiosqlite
 
-from .memory import (
-    get_branch_state, get_decisions,
-    get_project_state, get_recent_sessions, get_tasks,
-)
+from .constants import CONTEXT_IMPORTANCE_THRESHOLD, ENTITY_ICON, STATUS_ICON
 from .graph import get_full_graph
-from .constants import STATUS_ICON, ENTITY_ICON, CONTEXT_IMPORTANCE_THRESHOLD
+from .memory import (
+    get_branch_state,
+    get_decisions,
+    get_project_state,
+    get_recent_sessions,
+    get_tasks,
+)
 
 
 async def build_context(db: aiosqlite.Connection, project_id: str, branch: str) -> str:

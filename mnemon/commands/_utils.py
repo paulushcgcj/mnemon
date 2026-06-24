@@ -12,10 +12,9 @@ This module provides reusable functions for:
 
 import sys
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import click
-
 from pydantic import BaseModel
 
 
@@ -24,7 +23,7 @@ class CLIError(Exception):
     CLIError
     ========
     Base exception for CLI errors.
-    
+
     When raised, the CLI should exit with code 1 and display the message.
     """
     pass
@@ -33,13 +32,13 @@ class CLIError(Exception):
 def load_file(path: Path) -> str:
     """
     Load content from a file.
-    
+
     Args:
         path: Path to the file to load
-        
+
     Returns:
         File content as string
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         CLIError: If file cannot be read
@@ -49,19 +48,19 @@ def load_file(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except Exception as e:
-        raise CLIError(f"Failed to read {path}: {e}")
+        raise CLIError(f"Failed to read {path}: {e}") from e
 
 
 def load_files(paths: list[Path]) -> list[str]:
     """
     Load content from multiple files.
-    
+
     Args:
         paths: List of file paths to load
-        
+
     Returns:
         List of file contents as strings
-        
+
     Raises:
         FileNotFoundError: If any file doesn't exist
         CLIError: If any file cannot be read
@@ -70,18 +69,18 @@ def load_files(paths: list[Path]) -> list[str]:
 
 
 def write_output(
-    data: Union[str, BaseModel],
-    output_path: Optional[Path] = None,
+    data: str | BaseModel,
+    output_path: Path | None = None,
     format: str = "text",
 ) -> None:
     """
     Write output to stdout or file.
-    
+
     Args:
         data: Data to write (string or Pydantic model)
         output_path: Path to output file (None for stdout)
         format: Output format ('text' or 'json')
-        
+
     Raises:
         CLIError: If file cannot be written
     """
@@ -91,13 +90,13 @@ def write_output(
             data = data.model_dump_json(by_alias=True)
         else:
             data = str(data.model_dump())
-    
+
     if output_path:
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(str(data), encoding="utf-8")
         except Exception as e:
-            raise CLIError(f"Failed to write {output_path}: {e}")
+            raise CLIError(f"Failed to write {output_path}: {e}") from e
     else:
         # For click, use echo to ensure proper output
         click.echo(data)
@@ -106,19 +105,19 @@ def write_output(
 def format_output(
     data: Any,
     format: str = "text",
-    model_class: Optional[type[BaseModel]] = None,
+    model_class: type[BaseModel] | None = None,
 ) -> str:
     """
     Format data for output based on the specified format.
-    
+
     Args:
         data: Data to format
         format: Output format ('text' or 'json')
         model_class: Optional Pydantic model class to validate/serialize with
-        
+
     Returns:
         Formatted string
-        
+
     Raises:
         CLIError: If format is invalid or serialization fails
     """
@@ -128,8 +127,8 @@ def format_output(
             try:
                 data = model_class.model_validate(data)
             except Exception as e:
-                raise CLIError(f"Failed to validate data as {model_class.__name__}: {e}")
-        
+                raise CLIError(f"Failed to validate data as {model_class.__name__}: {e}") from e
+
         if isinstance(data, BaseModel):
             return data.model_dump_json(by_alias=True)
         else:
@@ -147,7 +146,7 @@ def format_output(
 def format_error(message: str) -> None:
     """
     Format and print an error message to stderr.
-    
+
     Args:
         message: Error message to display
     """
@@ -157,7 +156,7 @@ def format_error(message: str) -> None:
 def handle_cli_error(e: Exception, exit_code: int = 1) -> None:
     """
     Handle a CLI error by printing to stderr and exiting.
-    
+
     Args:
         e: Exception that occurred
         exit_code: Exit code to use (default: 1)
@@ -169,16 +168,16 @@ def handle_cli_error(e: Exception, exit_code: int = 1) -> None:
     sys.exit(exit_code)
 
 
-def get_project_id_from_cwd(cwd: Optional[str] = None) -> str:
+def get_project_id_from_cwd(cwd: str | None = None) -> str:
     """
     Get the project ID from the current working directory or specified directory.
-    
+
     Args:
         cwd: Directory to use (default: current working directory)
-        
+
     Returns:
         Project ID string
-        
+
     Raises:
         CLIError: If project ID cannot be determined
     """
@@ -186,19 +185,19 @@ def get_project_id_from_cwd(cwd: Optional[str] = None) -> str:
     try:
         return get_project_id(cwd or ".")
     except Exception as e:
-        raise CLIError(f"Could not detect project: {e}")
+        raise CLIError(f"Could not detect project: {e}") from e
 
 
-def get_branch_from_cwd(cwd: Optional[str] = None) -> str:
+def get_branch_from_cwd(cwd: str | None = None) -> str:
     """
     Get the current git branch from the current working directory or specified directory.
-    
+
     Args:
         cwd: Directory to use (default: current working directory)
-        
+
     Returns:
         Branch name string
-        
+
     Raises:
         CLIError: If branch cannot be determined
     """
@@ -206,19 +205,19 @@ def get_branch_from_cwd(cwd: Optional[str] = None) -> str:
     try:
         return get_branch(cwd or ".")
     except Exception as e:
-        raise CLIError(f"Could not detect branch: {e}")
+        raise CLIError(f"Could not detect branch: {e}") from e
 
 
 def validate_format(format: str) -> str:
     """
     Validate output format.
-    
+
     Args:
         format: Format string to validate
-        
+
     Returns:
         Validated format string
-        
+
     Raises:
         CLIError: If format is invalid
     """

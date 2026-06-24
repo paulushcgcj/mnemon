@@ -4,8 +4,6 @@ Memory Contracts
 Pydantic models for memory and knowledge-related JSON output.
 """
 
-from datetime import datetime
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -14,7 +12,7 @@ class EntityResult(BaseModel):
     EntityResult
     ==========
     Information about a single entity in the knowledge graph.
-    
+
     Args:
         id: Unique entity identifier
         projectId: Associated project ID
@@ -32,7 +30,7 @@ class EntityResult(BaseModel):
     name: str = Field(..., serialization_alias="name")
     entityType: str = Field(..., serialization_alias="entityType")
     importance: float = Field(..., serialization_alias="importance")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    branch: str | None = Field(None, serialization_alias="branch")
     createdAt: str = Field(..., serialization_alias="createdAt")
     updatedAt: str = Field(..., serialization_alias="updatedAt")
     observations: list[str] = Field(default_factory=list, serialization_alias="observations")
@@ -44,7 +42,7 @@ class KnowledgeGraph(BaseModel):
     KnowledgeGraph
     =============
     Complete knowledge graph for a project/branch.
-    
+
     Args:
         projectId: Associated project ID
         branch: Branch name (null for project-wide)
@@ -52,7 +50,7 @@ class KnowledgeGraph(BaseModel):
         totalCount: Total number of entities
     """
     projectId: str = Field(..., serialization_alias="projectId")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    branch: str | None = Field(None, serialization_alias="branch")
     entities: list[EntityResult] = Field(default_factory=list, serialization_alias="entities")
     totalCount: int = Field(..., serialization_alias="totalCount")
 
@@ -62,7 +60,7 @@ class ObservationResult(BaseModel):
     ObservationResult
     =================
     Information about an observation.
-    
+
     Args:
         id: Unique observation identifier
         entityId: Associated entity ID
@@ -82,7 +80,7 @@ class TaskResult(BaseModel):
     TaskResult
     ==========
     Information about a single task.
-    
+
     Args:
         id: Unique task identifier
         projectId: Associated project ID
@@ -97,8 +95,8 @@ class TaskResult(BaseModel):
     projectId: str = Field(..., serialization_alias="projectId")
     title: str = Field(..., serialization_alias="title")
     status: str = Field(..., serialization_alias="status")
-    notes: Optional[str] = Field(None, serialization_alias="notes")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    notes: str | None = Field(None, serialization_alias="notes")
+    branch: str | None = Field(None, serialization_alias="branch")
     createdAt: str = Field(..., serialization_alias="createdAt")
     updatedAt: str = Field(..., serialization_alias="updatedAt")
 
@@ -108,7 +106,7 @@ class TaskList(BaseModel):
     TaskList
     ========
     List of tasks with summary information.
-    
+
     Args:
         tasks: List of tasks
         total: Total number of tasks
@@ -124,7 +122,7 @@ class DecisionResult(BaseModel):
     DecisionResult
     ==============
     Information about a decision.
-    
+
     Args:
         id: Unique decision identifier
         projectId: Associated project ID
@@ -137,7 +135,7 @@ class DecisionResult(BaseModel):
     projectId: str = Field(..., serialization_alias="projectId")
     title: str = Field(..., serialization_alias="title")
     rationale: str = Field(..., serialization_alias="rationale")
-    branch: Optional[str] = Field(None, serialization_alias="branch")
+    branch: str | None = Field(None, serialization_alias="branch")
     createdAt: str = Field(..., serialization_alias="createdAt")
 
 
@@ -146,7 +144,7 @@ class SessionInfo(BaseModel):
     SessionInfo
     ==========
     Information about a session.
-    
+
     Args:
         sessionId: Unique session identifier
         projectId: Associated project ID
@@ -162,7 +160,7 @@ class SessionInfo(BaseModel):
     summary: str = Field(..., serialization_alias="summary")
     createdAt: str = Field(..., serialization_alias="createdAt")
     source: str = Field(..., serialization_alias="source")
-    sha: Optional[str] = Field(None, serialization_alias="sha")
+    sha: str | None = Field(None, serialization_alias="sha")
 
 
 class SessionList(BaseModel):
@@ -170,7 +168,7 @@ class SessionList(BaseModel):
     SessionList
     ==========
     List of sessions with summary information.
-    
+
     Args:
         sessions: List of sessions
         total: Total number of sessions

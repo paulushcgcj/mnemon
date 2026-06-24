@@ -10,31 +10,36 @@ This enables:
 - Runtime validation of contract usage
 """
 
-from mnemon.contracts.memory_contracts import (
-    KnowledgeGraph,
-    EntityResult,
-    ObservationResult,
-    TaskResult,
-    TaskList,
-    DecisionResult,
-    SessionInfo,
-    SessionList,
-)
-from mnemon.contracts.project_contracts import (
-    ProjectInfo,
-    ProjectList,
-    ProjectContext,
-)
+from pydantic import BaseModel
+
 from mnemon.contracts.graph_contracts import (
+    EntitySearchResult,
     GraphEntity,
+    GraphPruneResult,
     GraphRelation,
     GraphResult,
-    EntitySearchResult,
-    GraphPruneResult,
+)
+from mnemon.contracts.memory_contracts import (
+    DecisionResult,
+    EntityResult,
+    KnowledgeGraph,
+    ObservationResult,
+    SessionInfo,
+    SessionList,
+    TaskList,
+    TaskResult,
+)
+from mnemon.contracts.project_contracts import (
+    ProjectContext,
+    ProjectInfo,
+    ProjectList,
 )
 
+# Type alias for contract types
+ContractType = type[BaseModel]
+
 # All contract models organized by category
-CONTRACTS = {
+CONTRACTS: dict[str, dict[str, ContractType]] = {
     # Memory contracts
     "memory": {
         "KnowledgeGraph": KnowledgeGraph,
@@ -46,14 +51,14 @@ CONTRACTS = {
         "SessionInfo": SessionInfo,
         "SessionList": SessionList,
     },
-    
+
     # Project contracts
     "project": {
         "ProjectInfo": ProjectInfo,
         "ProjectList": ProjectList,
         "ProjectContext": ProjectContext,
     },
-    
+
     # Graph contracts
     "graph": {
         "GraphEntity": GraphEntity,
@@ -91,14 +96,14 @@ __all__ = [
 def get_contract(category: str, name: str):
     """
     Get a contract model by category and name.
-    
+
     Args:
         category: Contract category ('memory', 'project', 'graph')
         name: Contract model name
-        
+
     Returns:
         The Pydantic model class
-        
+
     Raises:
         KeyError: If category or contract name is not found
     """
@@ -109,16 +114,16 @@ def get_contract(category: str, name: str):
         raise KeyError(
             f"Contract '{name}' not found in category '{category}'. "
             f"Available categories: {available}"
-        )
+        ) from None
 
 
 def list_contracts(category: str | None = None) -> list[str]:
     """
     List all available contract names, optionally filtered by category.
-    
+
     Args:
         category: Optional category filter ('memory', 'project', 'graph')
-        
+
     Returns:
         List of contract model names
     """
@@ -127,19 +132,19 @@ def list_contracts(category: str | None = None) -> list[str]:
             return list(CONTRACTS[category].keys())
         except KeyError:
             available = list(CONTRACTS.keys())
-            raise KeyError(f"Category '{category}' not found. Available: {available}")
-    
+            raise KeyError(f"Category '{category}' not found. Available: {available}") from None
+
     # Return all contracts from all categories
-    all_contracts = []
+    all_contracts: list[str] = []
     for cat_contracts in CONTRACTS.values():
         all_contracts.extend(cat_contracts.keys())
     return all_contracts
 
 
-def get_all_contracts() -> dict[str, dict[str, type]]:
+def get_all_contracts() -> dict[str, dict[str, ContractType]]:
     """
     Get all contracts organized by category.
-    
+
     Returns:
         Dictionary of all contracts organized by category
     """

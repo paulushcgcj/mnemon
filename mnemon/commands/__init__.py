@@ -22,8 +22,9 @@ COMMAND_NAMES = [
 ]
 
 if TYPE_CHECKING:
-    import click
+    import click  # noqa: F401
+
     # Import the main CLI app for type checking only
-    from mnemon.cli import cli as main_app
+    from mnemon.cli import cli as main_app  # noqa: F401
 
 __all__ = ["COMMAND_NAMES"]

@@ -14,7 +14,6 @@ import aiosqlite
 
 from .constants import DEFAULT_OBSERVATION_SOURCE
 
-
 # ── Entities ──────────────────────────────────────────────────────────────────
 
 async def upsert_entity(
@@ -27,10 +26,13 @@ async def upsert_entity(
 ) -> str:
     """Create entity if it doesn't exist; update type/importance if it does."""
     # Validate inputs
-    from .constants import validate_entity_type, validate_importance, DEFAULT_ENTITY_TYPE, DEFAULT_IMPORTANCE
+    from .constants import (
+        validate_entity_type,
+        validate_importance,
+    )
     entity_type = validate_entity_type(entity_type)
     importance = validate_importance(importance)
-    
+
     async with db.execute(
         """
         INSERT INTO entities (project_id, branch, name, entity_type, importance)
@@ -45,7 +47,7 @@ async def upsert_entity(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]
+        return row[0]  # type: ignore[index,no-any-return]
 
 
 async def delete_entity(
@@ -115,7 +117,7 @@ async def add_observation(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]
+        return row[0]  # type: ignore[index,no-any-return]
 
 
 async def delete_observation(db: aiosqlite.Connection, observation_id: str) -> bool:
@@ -156,7 +158,7 @@ async def add_relation(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]
+        return row[0]  # type: ignore[index,no-any-return]
 
 
 async def delete_relation(db: aiosqlite.Connection, relation_id: str) -> bool:
@@ -209,7 +211,7 @@ async def search_entities(
     Returns entities ranked by importance, with matching observations attached.
     """
     like = f"%{query}%"
-    
+
     if entity_type:
         # With entity_type filter
         async with db.execute(

@@ -2,27 +2,28 @@ import asyncio
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import click
 
-from .db.connection import get_db
-from .db.migrations import run_migrations
+from .commands._utils import (
+    CLIError,
+    handle_cli_error,
+    validate_format,
+    write_output,
+)
 from .core.context import build_context
 from .core.git import get_branch, get_commit_context, get_project_id
+from .core.graph import list_entities, prune_entities
 from .core.memory import add_session_log
-from .core.graph import get_full_graph, prune_entities, list_entities
 from .core.projects import (
-    upsert_project, 
-    list_projects,
     get_project_children,
-    set_project_parent,
     get_project_tree,
+    list_projects,
+    set_project_parent,
+    upsert_project,
 )
-from .commands._utils import (
-    CLIError, load_file, write_output, format_error, handle_cli_error,
-    get_project_id_from_cwd, get_branch_from_cwd, validate_format
-)
+from .db.connection import get_db
+from .db.migrations import run_migrations
 
 # ── Copilot instructions template ─────────────────────────────────────────────
 
@@ -101,13 +102,13 @@ def init(cwd: str | None, force: bool, format: str, out: str | None) -> None:
     try:
         # Validate format
         validate_format(format)
-        
+
         _cwd = Path(cwd) if cwd else Path.cwd()
 
         try:
             project_id = get_project_id(str(_cwd))
         except Exception as e:
-            raise CLIError(f"Could not detect project: {e}")
+            raise CLIError(f"Could not detect project: {e}") from e
 
         github_dir = _cwd / ".github"
         target     = github_dir / "copilot-instructions.md"
@@ -127,7 +128,7 @@ def init(cwd: str | None, force: bool, format: str, out: str | None) -> None:
             return
 
         target.write_text(_INSTRUCTIONS_TEMPLATE.format(project_id=project_id))
-        
+
         if format == "json":
             import json
             output = json.dumps({
@@ -137,9 +138,9 @@ def init(cwd: str | None, force: bool, format: str, out: str | None) -> None:
             }, indent=2)
         else:
             output = f"✓  Created {target.relative_to(_cwd)}\n   project_id: {project_id}\n\nNext: run  mnemon install  to add the memory skill."
-        
+
         write_output(output, Path(out) if out else None, format)
-        
+
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -167,7 +168,7 @@ def install(cwd: str | None, force: bool, format: str, out: str | None) -> None:
     try:
         # Validate format
         validate_format(format)
-        
+
         _cwd      = Path(cwd) if cwd else Path.cwd()
         skill_dir = _cwd / ".github" / "skills" / "mnemon"
         target    = skill_dir / "SKILL.md"
@@ -198,9 +199,9 @@ def install(cwd: str | None, force: bool, format: str, out: str | None) -> None:
             }, indent=2)
         else:
             output = f"✓  Installed skill → {target.relative_to(_cwd)}\n\nThe AI will follow this skill when you say 'remember this'.\nTip: run  mnemon init  if you haven't set up copilot-instructions.md yet."
-        
+
         write_output(output, Path(out) if out else None, format)
-        
+
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -225,7 +226,7 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
     try:
         # Validate format
         validate_format(format)
-        
+
         async def _run() -> None:
             _cwd = cwd or os.getcwd()
             try:
@@ -253,7 +254,7 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
                 + (f" ({files_count} files)" if files_count > 0 else "")
                 + (f" by {ctx['author']}" if ctx['author'] else "")
             )
-            
+
             # Only log if there's meaningful content
             if not ctx['message'].strip():
                 if format == "json":
@@ -268,13 +269,13 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
                     output = "[mnemon] Skipped: empty commit message"
                 write_output(output, Path(out) if out else None, format)
                 return
-            
+
             async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 await upsert_project(db, project_id)
                 await add_session_log(db, project_id, summary,
                                       branch=branch, source="git-commit", sha=ctx["sha"])
-            
+
             if format == "json":
                 import json
                 output = json.dumps({
@@ -287,7 +288,7 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
                 }, indent=2)
             else:
                 output = f"[mnemon] {ctx['short_sha']} → {project_id}@{branch}"
-            
+
             write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -306,7 +307,7 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
 @click.option("--db-path", default=None, help="Database path (default: ~/.agent-memory/mnemon.db or MNEMON_DB_PATH env)")
 @click.option("--format",  default="text", help="Output format (text or json)")
 @click.option("--out",     default=None, type=click.Path(), help="Output file path (default: stdout)")
-def read(cwd: str | None, project: str | None, branch: str | None, 
+def read(cwd: str | None, project: str | None, branch: str | None,
          db_path: str | None, format: str, out: str | None) -> None:
     """
     Print the full context block — what the AI sees at session start.
@@ -320,7 +321,7 @@ def read(cwd: str | None, project: str | None, branch: str | None,
     try:
         # Validate format
         validate_format(format)
-        
+
         async def _run() -> None:
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
@@ -329,14 +330,14 @@ def read(cwd: str | None, project: str | None, branch: str | None,
                 await run_migrations(db)
                 await upsert_project(db, project_id)
                 context = await build_context(db, project_id, _branch)
-                
+
                 if format == "json":
                     # For now, return as simple dict - TODO: Use proper contract model
                     import json
                     output = json.dumps({"context": context}, indent=2)
                 else:
                     output = context
-                    
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -374,7 +375,7 @@ def graph(cwd: str | None, project: str | None,
     try:
         # Validate format
         validate_format(format)
-        
+
         async def _run() -> None:
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
@@ -420,7 +421,7 @@ def graph(cwd: str | None, project: str | None,
                                 lines.append(f"    → {r['relation']}: {r['other_name']}")
                         lines.append("")
                     output = "".join(lines)
-                    
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -461,7 +462,7 @@ def prune(cwd: str | None, project: str | None,
     try:
         # Validate format
         validate_format(format)
-        
+
         async def _run() -> None:
             _cwd       = cwd or os.getcwd()
             project_id = project or get_project_id(_cwd)
@@ -476,7 +477,7 @@ def prune(cwd: str | None, project: str | None,
                         e for e in entities
                         if e["importance"] < below
                     ]
-                    
+
                     if not candidates:
                         output = "Nothing to prune."
                     elif format == "json":
@@ -506,7 +507,7 @@ def prune(cwd: str | None, project: str | None,
                     count = await prune_entities(db, project_id,
                                              importance_below=below,
                                              older_than_days=days)
-                    
+
                     if format == "json":
                         import json
                         output_data = {
@@ -523,7 +524,7 @@ def prune(cwd: str | None, project: str | None,
                                    f"(importance < {below}, not updated in {days}+ days)"
                         else:
                             output = "Nothing to prune."
-                
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -551,12 +552,12 @@ def projects(db_path: str | None, format: str, out: str | None) -> None:
     try:
         # Validate format
         validate_format(format)
-        
+
         async def _run() -> None:
             async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 rows = await list_projects(db)
-                
+
                 if format == "json":
                     import json
                     if not rows:
@@ -581,7 +582,7 @@ def projects(db_path: str | None, format: str, out: str | None) -> None:
                             parent = f"  (parent: {p['parent_id']})" if p.get("parent_id") else ""
                             lines.append(f"  {p['id']}{parent}")
                         output = "\n".join(lines) if lines else "No projects found."
-                
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -599,7 +600,7 @@ def projects(db_path: str | None, format: str, out: str | None) -> None:
 @click.option("--db-path", default=None, help="Database path")
 @click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
 @click.option("--out", default=None, type=click.Path(), help="Output file path")
-def project_set_parent_cli(project: str, parent: Optional[str], db_path: Optional[str], format: str, out: Optional[str]) -> None:
+def project_set_parent_cli(project: str, parent: str | None, db_path: str | None, format: str, out: str | None) -> None:
     """Set the parent project for a project."""
     try:
         async def _run() -> None:
@@ -612,7 +613,7 @@ def project_set_parent_cli(project: str, parent: Optional[str], db_path: Optiona
                 else:
                     output = f"Project '{project}' not found."
                     raise CLIError(output)
-                
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -628,7 +629,7 @@ def project_set_parent_cli(project: str, parent: Optional[str], db_path: Optiona
 @click.option("--db-path", default=None, help="Database path")
 @click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
 @click.option("--out", default=None, type=click.Path(), help="Output file path")
-def project_children_cli(project: str, recursive: bool, db_path: Optional[str], format: str, out: Optional[str]) -> None:
+def project_children_cli(project: str, recursive: bool, db_path: str | None, format: str, out: str | None) -> None:
     """List child projects of a project."""
     try:
         async def _run() -> None:
@@ -639,7 +640,7 @@ def project_children_cli(project: str, recursive: bool, db_path: Optional[str], 
                     output = f"No children found for project '{project}'."
                 else:
                     output = "\n".join(f"  - {c['id']}" for c in children)
-                
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())
@@ -654,14 +655,14 @@ def project_children_cli(project: str, recursive: bool, db_path: Optional[str], 
 @click.option("--db-path", default=None, help="Database path")
 @click.option("--format", default="text", type=click.Choice(["text", "json"]), help="Output format")
 @click.option("--out", default=None, type=click.Path(), help="Output file path")
-def project_tree_cli(project: Optional[str], db_path: Optional[str], format: str, out: Optional[str]) -> None:
+def project_tree_cli(project: str | None, db_path: str | None, format: str, out: str | None) -> None:
     """Display the project hierarchy as a tree."""
     try:
         async def _run() -> None:
             async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 tree = await get_project_tree(db, project)
-                
+
                 def print_tree(nodes, indent=0):
                     lines = []
                     for node in nodes:
@@ -670,12 +671,12 @@ def project_tree_cli(project: Optional[str], db_path: Optional[str], format: str
                         if node.get("children"):
                             lines.extend(print_tree(node["children"], indent + 1))
                     return lines
-                
+
                 if not tree:
                     output = "No projects found."
                 else:
                     output = "\n".join(print_tree(tree))
-                
+
                 write_output(output, Path(out) if out else None, format)
 
         asyncio.run(_run())

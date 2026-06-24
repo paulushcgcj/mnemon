@@ -1,17 +1,17 @@
+
 import aiosqlite
-from typing import Optional
 
 
 async def upsert_project(
     db: aiosqlite.Connection,
     project_id: str,
-    name: Optional[str] = None,
-    git_url: Optional[str] = None,
-    parent_id: Optional[str] = None,
+    name: str | None = None,
+    git_url: str | None = None,
+    parent_id: str | None = None,
 ) -> None:
     """
     Upsert a project.
-    
+
     Args:
         db: Database connection
         project_id: The project ID (e.g., 'owner/repo')
@@ -22,7 +22,7 @@ async def upsert_project(
     # Prevent circular reference (parent can't be the same as project)
     if parent_id == project_id:
         raise ValueError(f"Project '{project_id}' cannot be its own parent.")
-    
+
     # Check for circular reference in the tree (only if parent exists)
     if parent_id:
         # First check if parent exists
@@ -30,7 +30,7 @@ async def upsert_project(
             "SELECT 1 FROM projects WHERE id = ?", (parent_id,)
         ) as cur:
             parent_exists = await cur.fetchone() is not None
-        
+
         if parent_exists:
             # Use a CTE to check if project_id would be an ancestor of parent_id
             async with db.execute(
@@ -51,11 +51,11 @@ async def upsert_project(
                         f"Circular reference detected: project '{project_id}' "
                         f"would be an ancestor of its parent '{parent_id}'."
                     )
-    
+
     # Use provided name or derive from project_id
     if name is None:
         name = project_id.split("/")[-1] if "/" in project_id else project_id
-    
+
     await db.execute(
         """
         INSERT INTO projects (id, name, git_url, parent_id)
@@ -71,18 +71,18 @@ async def upsert_project(
 
 
 async def list_projects(
-    db: aiosqlite.Connection, 
-    parent_id: Optional[str] = None,
+    db: aiosqlite.Connection,
+    parent_id: str | None = None,
     include_children: bool = False,
 ) -> list[dict]:
     """
     List projects, optionally filtered by parent.
-    
+
     Args:
         db: Database connection
         parent_id: Filter by parent project ID. If None, returns all projects.
         include_children: If True and parent_id is set, also includes all descendants.
-    
+
     Returns:
         List of project dicts
     """
@@ -123,12 +123,12 @@ async def get_project_children(
 ) -> list[dict]:
     """
     Get direct children of a project.
-    
+
     Args:
         db: Database connection
         project_id: The parent project ID
         recursive: If True, include all descendants (not just direct children)
-    
+
     Returns:
         List of child project dicts
     """
@@ -160,23 +160,23 @@ async def get_project_children(
 async def set_project_parent(
     db: aiosqlite.Connection,
     project_id: str,
-    parent_id: Optional[str],
+    parent_id: str | None,
 ) -> bool:
     """
     Set or update the parent of a project.
-    
+
     Args:
         db: Database connection
         project_id: The project to update
         parent_id: The new parent, or None to remove parent
-    
+
     Returns:
         True if a row was updated, False otherwise
     """
     # Prevent circular reference (parent can't be the same as project)
     if parent_id == project_id:
         raise ValueError(f"Project '{project_id}' cannot be its own parent.")
-    
+
     # Check for circular reference in the tree (only if parent exists)
     if parent_id:
         # First check if parent exists
@@ -184,7 +184,7 @@ async def set_project_parent(
             "SELECT 1 FROM projects WHERE id = ?", (parent_id,)
         ) as cur:
             parent_exists = await cur.fetchone() is not None
-        
+
         if parent_exists:
             # Use a CTE to check if project_id would be an ancestor of parent_id
             async with db.execute(
@@ -205,26 +205,26 @@ async def set_project_parent(
                         f"Circular reference detected: project '{project_id}' "
                         f"would be an ancestor of its parent '{parent_id}'."
                     )
-    
-    result = await db.execute(
+
+    result = await db.execute(  # type: ignore[assignment]
         "UPDATE projects SET parent_id = ? WHERE id = ?",
         (parent_id, project_id),
     )
     await db.commit()
-    return result.rowcount > 0
+    return result.rowcount > 0  # type: ignore[union-attr,no-any-return]
 
 
 async def get_project_tree(
     db: aiosqlite.Connection,
-    project_id: Optional[str] = None,
+    project_id: str | None = None,
 ) -> list[dict]:
     """
     Get the full project tree as a nested structure.
-    
+
     Args:
         db: Database connection
         project_id: Root project ID. If None, returns all top-level projects.
-    
+
     Returns:
         List of project dicts with 'children' key containing nested children
     """
@@ -259,12 +259,12 @@ async def get_project_tree(
             """,
         ) as cur:
             all_projects = [dict(r) for r in await cur.fetchall()]
-    
+
     # Build nested structure
     def build_tree(projects, parent_id=None):
         children = [p for p in projects if p.get("parent_id") == parent_id]
         for child in children:
             child["children"] = build_tree(projects, child["id"])
         return children
-    
-    return build_tree(all_projects)
+
+    return build_tree(all_projects)  # type: ignore[no-any-return]

@@ -1,0 +1,3 @@
+This is not valid SQL or JSON
+It has multiple lines
+And special characters: !@#$%^&*()

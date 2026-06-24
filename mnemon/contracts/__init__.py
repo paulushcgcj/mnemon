@@ -11,33 +11,33 @@ for all mnemon CLI commands, providing:
 - Documentation generation
 """
 
-from mnemon.contracts.memory_contracts import (
-    KnowledgeGraph,
-    EntityResult,
-    ObservationResult,
-    TaskResult,
-    TaskList,
-    DecisionResult,
-    SessionInfo,
-    SessionList,
-)
-from mnemon.contracts.project_contracts import (
-    ProjectInfo,
-    ProjectList,
-    ProjectContext,
-)
 from mnemon.contracts.graph_contracts import (
+    EntitySearchResult,
     GraphEntity,
+    GraphPruneResult,
     GraphRelation,
     GraphResult,
-    EntitySearchResult,
-    GraphPruneResult,
+)
+from mnemon.contracts.memory_contracts import (
+    DecisionResult,
+    EntityResult,
+    KnowledgeGraph,
+    ObservationResult,
+    SessionInfo,
+    SessionList,
+    TaskList,
+    TaskResult,
+)
+from mnemon.contracts.project_contracts import (
+    ProjectContext,
+    ProjectInfo,
+    ProjectList,
 )
 from mnemon.contracts.registry import (
     CONTRACTS,
+    get_all_contracts,
     get_contract,
     list_contracts,
-    get_all_contracts,
 )
 
 # All available contract model names
@@ -45,7 +45,7 @@ __all__ = [
     # Memory contracts
     "KnowledgeGraph",
     "EntityResult",
-    "ObservationResult", 
+    "ObservationResult",
     "TaskResult",
     "TaskList",
     "DecisionResult",
@@ -64,6 +64,6 @@ __all__ = [
     # Registry functions
     "CONTRACTS",
     "get_contract",
-    "list_contracts", 
+    "list_contracts",
     "get_all_contracts",
 ]

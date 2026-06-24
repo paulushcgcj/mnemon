@@ -17,7 +17,7 @@ def get_project_id(cwd: str | None = None) -> str:
     try:
         url = _git("remote", "get-url", "origin", cwd=cwd)
     except subprocess.CalledProcessError:
-        raise RuntimeError("Not a git repo or no remote 'origin'.")
+        raise RuntimeError("Not a git repo or no remote 'origin'.") from None
     match = re.search(r"[:/]([^/]+/[^/]+?)(?:\.git)?$", url)
     if not match:
         raise ValueError(f"Cannot parse owner/repo from: {url}")
@@ -31,7 +31,7 @@ def get_branch(cwd: str | None = None) -> str:
 def get_commit_context(cwd: str | None = None) -> dict:
     """
     Get context about the current commit.
-    
+
     Returns a dict with:
     - sha: Full commit hash
     - short_sha: First 8 characters of hash
@@ -39,13 +39,13 @@ def get_commit_context(cwd: str | None = None) -> dict:
     - author: Author name
     - files: List of changed files (empty for first commit)
     - stat: Diff stat (empty for first commit)
-    
+
     Handles first commit (no parent) gracefully.
     """
     sha     = _git("rev-parse", "HEAD", cwd=cwd)
     message = _git("log", "-1", "--pretty=%B", cwd=cwd).strip()
     author  = _git("log", "-1", "--pretty=%an", cwd=cwd)
-    
+
     # Try to get diff from parent, but handle first commit
     try:
         files   = _git("diff", "HEAD~1", "HEAD", "--name-only", cwd=cwd).splitlines()
@@ -54,7 +54,7 @@ def get_commit_context(cwd: str | None = None) -> dict:
         # This is the first commit, no parent
         files   = []
         stat    = ""
-    
+
     return {
         "sha":       sha,
         "short_sha": sha[:8],
