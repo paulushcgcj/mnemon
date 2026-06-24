@@ -85,20 +85,21 @@ async def list_entities(
             """
             SELECT * FROM entities
             WHERE project_id = ? AND entity_type = ?
-              AND (branch IS NULL OR branch = ?)
+              AND (branch IS NULL OR ? IS NULL OR branch = ?)
             ORDER BY importance DESC, updated_at DESC LIMIT ?
             """,
-            (project_id, entity_type, branch, limit),
+            (project_id, entity_type, branch, branch, limit),
         ) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
     async with db.execute(
         """
         SELECT * FROM entities
-        WHERE project_id = ? AND (branch IS NULL OR branch = ?)
+        WHERE project_id = ?
+          AND (branch IS NULL OR ? IS NULL OR branch = ?)
         ORDER BY importance DESC, updated_at DESC LIMIT ?
         """,
-        (project_id, branch, limit),
+        (project_id, branch, branch, limit),
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
