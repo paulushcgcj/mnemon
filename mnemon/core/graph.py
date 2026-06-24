@@ -202,23 +202,38 @@ async def search_entities(
     Returns entities ranked by importance, with matching observations attached.
     """
     like = f"%{query}%"
-    type_filter = "AND e.entity_type = ?" if entity_type else ""
-    type_args   = (entity_type,) if entity_type else ()
-
-    async with db.execute(
-        f"""
-        SELECT DISTINCT e.*
-        FROM entities e
-        LEFT JOIN observations o ON o.entity_id = e.id
-        WHERE e.project_id = ?
-          {type_filter}
-          AND (e.name LIKE ? OR o.content LIKE ?)
-        ORDER BY e.importance DESC
-        LIMIT ?
-        """,
-        (project_id, *type_args, like, like, limit),
-    ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
+    
+    if entity_type:
+        # With entity_type filter
+        async with db.execute(
+            """
+            SELECT DISTINCT e.*
+            FROM entities e
+            LEFT JOIN observations o ON o.entity_id = e.id
+            WHERE e.project_id = ?
+              AND e.entity_type = ?
+              AND (e.name LIKE ? OR o.content LIKE ?)
+            ORDER BY e.importance DESC
+            LIMIT ?
+            """,
+            (project_id, entity_type, like, like, limit),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+    else:
+        # Without entity_type filter
+        async with db.execute(
+            """
+            SELECT DISTINCT e.*
+            FROM entities e
+            LEFT JOIN observations o ON o.entity_id = e.id
+            WHERE e.project_id = ?
+              AND (e.name LIKE ? OR o.content LIKE ?)
+            ORDER BY e.importance DESC
+            LIMIT ?
+            """,
+            (project_id, like, like, limit),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
 
 
 # ── Full graph read ───────────────────────────────────────────────────────────
