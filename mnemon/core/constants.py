@@ -1,5 +1,5 @@
 """
-Constants for Mnemon input validation.
+Constants for Mnemon.
 
 All magic strings and valid value sets should be defined here.
 """
@@ -35,6 +35,58 @@ DEFAULT_TASK_STATUS = "todo"
 MIN_IMPORTANCE = 0.0
 MAX_IMPORTANCE = 1.0
 DEFAULT_IMPORTANCE = 0.5
+
+# Threshold for including entities in context block
+CONTEXT_IMPORTANCE_THRESHOLD = 0.4
+
+# ── Task Status Priority ──────────────────────────────────────────────────────
+
+# Order for displaying tasks (higher priority first)
+TASK_STATUS_PRIORITY = {
+    "in-progress": 1,
+    "blocked": 2,
+    "todo": 3,
+    "done": 4,
+}
+
+# ── Sources ───────────────────────────────────────────────────────────────────
+
+# Source types for session logs
+SESSION_LOG_SOURCES = {
+    "ai",
+    "git-commit",
+}
+
+DEFAULT_SESSION_LOG_SOURCE = "ai"
+
+# Source types for observations
+OBSERVATION_SOURCES = {
+    "ai",
+    "git-commit",
+    "manual",
+}
+
+DEFAULT_OBSERVATION_SOURCE = "ai"
+
+# ── Status Icons (for CLI output) ────────────────────────────────────────────
+
+STATUS_ICON = {
+    "in-progress": "▶",
+    "blocked": "✗",
+    "todo": "○",
+    "done": "✓",
+}
+
+# ── Entity Icons (for CLI output) ────────────────────────────────────────────
+
+ENTITY_ICON = {
+    "component": "⬡",
+    "concept": "◈",
+    "person": "◉",
+    "file": "◻",
+    "system": "◆",
+    "custom": "◇",
+}
 
 # ── Validation Helpers ────────────────────────────────────────────────────────
 

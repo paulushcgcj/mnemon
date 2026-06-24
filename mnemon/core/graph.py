@@ -12,6 +12,8 @@ Better than Anthropic's memory server because:
 
 import aiosqlite
 
+from .constants import DEFAULT_OBSERVATION_SOURCE
+
 
 # ── Entities ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,11 @@ async def upsert_entity(
     branch: str | None = None,
 ) -> str:
     """Create entity if it doesn't exist; update type/importance if it does."""
+    # Validate inputs
+    from .constants import validate_entity_type, validate_importance, DEFAULT_ENTITY_TYPE, DEFAULT_IMPORTANCE
+    entity_type = validate_entity_type(entity_type)
+    importance = validate_importance(importance)
+    
     async with db.execute(
         """
         INSERT INTO entities (project_id, branch, name, entity_type, importance)
@@ -100,7 +107,7 @@ async def add_observation(
     db: aiosqlite.Connection,
     entity_id: str,
     content: str,
-    source: str = "ai",
+    source: str = DEFAULT_OBSERVATION_SOURCE,
 ) -> str:
     async with db.execute(
         "INSERT INTO observations (entity_id, content, source) VALUES (?,?,?) RETURNING id",

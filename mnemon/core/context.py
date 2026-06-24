@@ -5,22 +5,7 @@ from .memory import (
     get_project_state, get_recent_sessions, get_tasks,
 )
 from .graph import get_full_graph
-
-STATUS_ICON = {
-    "in-progress": "▶",
-    "blocked":     "✗",
-    "todo":        "○",
-    "done":        "✓",
-}
-
-ENTITY_ICON = {
-    "component": "⬡",
-    "concept":   "◈",
-    "person":    "◉",
-    "file":      "◻",
-    "system":    "◆",
-    "custom":    "◇",
-}
+from .constants import STATUS_ICON, ENTITY_ICON, CONTEXT_IMPORTANCE_THRESHOLD
 
 
 async def build_context(db: aiosqlite.Connection, project_id: str, branch: str) -> str:
@@ -30,7 +15,7 @@ async def build_context(db: aiosqlite.Connection, project_id: str, branch: str) 
     tasks         = await get_tasks(db, project_id, branch)
     recent        = await get_recent_sessions(db, project_id, branch, limit=5)
     # Top entities by importance — inject the most relevant ones into context
-    entities      = await get_full_graph(db, project_id, branch=branch, importance_min=0.4, limit=15)
+    entities      = await get_full_graph(db, project_id, branch=branch, importance_min=CONTEXT_IMPORTANCE_THRESHOLD, limit=15)
 
     lines: list[str] = [f"## {project_id}  |  branch: {branch}", ""]
 
