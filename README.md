@@ -308,8 +308,29 @@ The package entry point is defined in `pyproject.toml`:
 mnemon = "mnemon.cli:cli"
 ```
 
+## Recent Improvements
+
+The following improvements have been completed as part of the ongoing development:
+
+| Date | Change | Workstream | Impact |
+|------|--------|-----------|--------|
+| 2026-06-23 | Fixed SQL injection vulnerability in search_entities | [01-security-fixes](.temp/plan/01-security-fixes.md) | HIGH - Security |
+| 2026-06-23 | Added input validation for entity types, task statuses, importance | [02-input-validation](.temp/plan/02-input-validation.md) | HIGH - Data Quality |
+| 2026-06-23 | Extracted magic strings into constants module | [03-constants-refactor](.temp/plan/03-constants-refactor.md) | MEDIUM - Maintainability |
+| 2026-06-23 | Made database path configurable via env var and CLI | [04-configurable-db-path](.temp/plan/04-configurable-db-path.md) | MEDIUM - Testability |
+| 2026-06-23 | Improved git hooks with better error handling | [05-git-hook-improvements](.temp/plan/05-git-hook-improvements.md) | MEDIUM - Reliability |
+| 2026-06-24 | Added CLI quality improvements (contracts, format flags, error handling) | [09-cli-quality-improvements](.temp/plan/09-cli-quality-improvements.md) | HIGH - CLI Infrastructure |
+
+### Architecture Updates
+
+- **New Module:** `mnemon/core/constants.py` - Centralized constants and validation helpers
+- **Enhanced:** `mnemon/db/connection.py` - Now supports `MNEMON_DB_PATH` environment variable and explicit path override
+- **Improved:** `mnemon/core/git.py` - `get_commit_context()` now handles first commit gracefully
+- **Hardened:** All CLI commands now include `--db-path` option for testing
+- **New Directories:** `mnemon/contracts/` - Pydantic models for JSON output contracts, `mnemon/commands/` - Shared CLI utilities
+
 ## Status
 
 Mnemon is early software. The core loop is intentionally usable now: install it, initialize a repository, connect an MCP client, and let the agent keep project memory as work progresses.
 
-The most valuable next improvements are likely around export/import, richer graph inspection, tests, and more client-specific setup guides.
+The most valuable next improvements are likely around export/import, richer graph inspection, comprehensive test coverage, and more client-specific setup guides.
