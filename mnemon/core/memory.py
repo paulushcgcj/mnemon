@@ -1,5 +1,11 @@
 import aiosqlite
 
+from .constants import (
+    DEFAULT_TASK_STATUS,
+    DEFAULT_SESSION_LOG_SOURCE,
+    validate_task_status,
+)
+
 
 # ── Project state ─────────────────────────────────────────────────────────────
 
@@ -107,7 +113,7 @@ async def add_task(
     branch: str | None = None,
     source: str = "ai",
     notes: str | None = None,
-    status: str = "todo",
+    status: str = DEFAULT_TASK_STATUS,
 ) -> str:
     async with db.execute(
         """
@@ -127,6 +133,9 @@ async def update_task(
     status: str,
     notes: str | None = None,
 ) -> bool:
+    # Validate status
+    status = validate_task_status(status)
+    
     result = await db.execute(
         """
         UPDATE tasks
@@ -168,7 +177,7 @@ async def add_session_log(
     project_id: str,
     summary: str,
     branch: str | None = None,
-    source: str = "ai",
+    source: str = DEFAULT_SESSION_LOG_SOURCE,
     sha: str | None = None,
 ) -> None:
     await db.execute(
