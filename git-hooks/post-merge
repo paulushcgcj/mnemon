@@ -1,4 +1,20 @@
 #!/usr/bin/env bash
 # Mnemon — post-merge hook
+# Logs merge commit information to the Mnemon memory system
+
 set -euo pipefail
-mnemon log-commit 2>/dev/null || true
+
+# Check if mnemon is available
+if ! command -v mnemon &>/dev/null; then
+    echo "[mnemon] Warning: mnemon command not found. Merge not logged." >&2
+    exit 0
+fi
+
+# Log the commit, but don't fail the merge if mnemon fails
+if mnemon log-commit 2>&1; then
+    echo "[mnemon] Merge logged successfully."
+else
+    echo "[mnemon] Warning: Failed to log merge. Continuing anyway." >&2
+    # Don't exit with error - this would abort the git operation
+    exit 0
+fi

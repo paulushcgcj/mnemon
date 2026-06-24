@@ -240,11 +240,29 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
                 write_output(output, Path(out) if out else None, format)
                 return
 
+            # Build summary
+            files_count = len(ctx['files'])
             summary = (
                 f"{ctx['message'].splitlines()[0]}"
-                f" ({len(ctx['files'])} files)"
-                f" by {ctx['author']}"
+                + (f" ({files_count} files)" if files_count > 0 else "")
+                + (f" by {ctx['author']}" if ctx['author'] else "")
             )
+            
+            # Only log if there's meaningful content
+            if not ctx['message'].strip():
+                if format == "json":
+                    import json
+                    output = json.dumps({
+                        "error": "Skipped: empty commit message",
+                        "projectId": None,
+                        "branch": None,
+                        "commitSha": None
+                    }, indent=2)
+                else:
+                    output = "[mnemon] Skipped: empty commit message"
+                write_output(output, Path(out) if out else None, format)
+                return
+            
             async with get_db(path=db_path) as db:
                 await run_migrations(db)
                 await upsert_project(db, project_id)

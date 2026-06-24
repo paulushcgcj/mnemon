@@ -29,11 +29,32 @@ def get_branch(cwd: str | None = None) -> str:
 
 
 def get_commit_context(cwd: str | None = None) -> dict:
+    """
+    Get context about the current commit.
+    
+    Returns a dict with:
+    - sha: Full commit hash
+    - short_sha: First 8 characters of hash
+    - message: Commit message
+    - author: Author name
+    - files: List of changed files (empty for first commit)
+    - stat: Diff stat (empty for first commit)
+    
+    Handles first commit (no parent) gracefully.
+    """
     sha     = _git("rev-parse", "HEAD", cwd=cwd)
     message = _git("log", "-1", "--pretty=%B", cwd=cwd).strip()
     author  = _git("log", "-1", "--pretty=%an", cwd=cwd)
-    files   = _git("diff", "HEAD~1", "HEAD", "--name-only", cwd=cwd).splitlines()
-    stat    = _git("diff", "HEAD~1", "HEAD", "--stat", cwd=cwd)
+    
+    # Try to get diff from parent, but handle first commit
+    try:
+        files   = _git("diff", "HEAD~1", "HEAD", "--name-only", cwd=cwd).splitlines()
+        stat    = _git("diff", "HEAD~1", "HEAD", "--stat", cwd=cwd)
+    except subprocess.CalledProcessError:
+        # This is the first commit, no parent
+        files   = []
+        stat    = ""
+    
     return {
         "sha":       sha,
         "short_sha": sha[:8],
@@ -41,4 +62,5 @@ def get_commit_context(cwd: str | None = None) -> dict:
         "author":    author,
         "files":     [f for f in files if f],
         "stat":      stat,
+        "is_first_commit": len(files) == 0 and len(stat) == 0,
     }
