@@ -25,10 +25,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --extra test
 
       - name: Run tests
-        run: pytest --cov=mnemon --cov-fail-under=95
+        run: uv run pytest --cov=mnemon --cov-branch --cov-report=term-missing --cov-fail-under=95
 
   lint:
     name: Lint
@@ -48,10 +48,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --extra test
 
       - name: Run ruff
-        run: uv run ruff check src/
+        run: uv run ruff check src/mnemon tests
 
   type-check:
     name: Type Check
@@ -71,10 +71,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --extra test
 
       - name: Run mypy
-        run: uv run mypy src/
+        run: uv run mypy src/mnemon
 
       - name: Run pyright
-        run: uv run pyright src/
+        run: uv run pyright src/mnemon
