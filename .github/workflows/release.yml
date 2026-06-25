@@ -65,7 +65,8 @@ jobs:
         shell: bash
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
+          sed -i.bak "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
+          rm -f pyproject.toml.bak
           uv lock
 
       - name: Install project + PyInstaller
@@ -114,7 +115,8 @@ jobs:
         shell: bash
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
+          sed -i.bak "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
+          rm -f pyproject.toml.bak
           uv lock
 
       - name: Build wheel and source distribution
