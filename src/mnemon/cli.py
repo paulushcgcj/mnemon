@@ -1,4 +1,3 @@
-import asyncio
 import os
 import shutil
 from pathlib import Path
@@ -8,6 +7,7 @@ import click
 from .commands._utils import (
     CLIError,
     handle_cli_error,
+    run_async,
     validate_format,
     write_output,
 )
@@ -291,7 +291,7 @@ def log_commit(cwd: str | None, db_path: str | None, format: str, out: str | Non
 
             write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -340,7 +340,7 @@ def read(cwd: str | None, project: str | None, branch: str | None,
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -424,7 +424,7 @@ def graph(cwd: str | None, project: str | None,
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -527,7 +527,7 @@ def prune(cwd: str | None, project: str | None,
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -585,7 +585,7 @@ def projects(db_path: str | None, format: str, out: str | None) -> None:
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -616,7 +616,7 @@ def project_set_parent_cli(project: str, parent: str | None, db_path: str | None
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -643,7 +643,7 @@ def project_children_cli(project: str, recursive: bool, db_path: str | None, for
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:
@@ -679,7 +679,7 @@ def project_tree_cli(project: str | None, db_path: str | None, format: str, out:
 
                 write_output(output, Path(out) if out else None, format)
 
-        asyncio.run(_run())
+        run_async(_run())
     except CLIError as e:
         handle_cli_error(e)
     except Exception as e:

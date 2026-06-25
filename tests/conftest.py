@@ -4,18 +4,16 @@ Pytest Configuration
 Shared fixtures and configuration for pytest.
 """
 
-import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
+import aiosqlite
 import pytest
 import pytest_asyncio
-import aiosqlite
 
-from mnemon.db.connection import get_db
-from mnemon.db.migrations import run_migrations, SCHEMA
 from mnemon.core.projects import upsert_project
-
+from mnemon.db.connection import get_db
+from mnemon.db.migrations import SCHEMA, run_migrations
 
 # Root directory of the project
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -82,23 +80,23 @@ def tmp_db_path(tmp_path: Path) -> Path:
 async def db_connection(tmp_db_path: Path) -> Generator[aiosqlite.Connection, None, None]:
     """
     Create a temporary database connection for testing.
-    
+
     Yields:
         An aiosqlite connection to a temporary database
     """
     # Create the database file
     tmp_db_path.touch()
-    
+
     # Connect to database
     db = await aiosqlite.connect(str(tmp_db_path))
     db.row_factory = aiosqlite.Row
-    
+
     # Apply migrations
     await db.executescript(SCHEMA)
     await db.commit()
-    
+
     yield db
-    
+
     # Cleanup
     await db.close()
     if tmp_db_path.exists():
@@ -165,7 +163,7 @@ async def _setup_project(db, project_id):
 async def db(temp_db_path, project_id):
     """
     Provide a database connection with migrations run and a test project created.
-    
+
     This fixture:
     1. Creates a temporary database file
     2. Runs all migrations
@@ -183,7 +181,7 @@ async def db(temp_db_path, project_id):
 async def in_memory_db(in_memory_db_path, project_id):
     """
     Provide an in-memory database connection with migrations run and a test project created.
-    
+
     Use this for tests that don't need persistence between runs.
     """
     async with get_db(path=in_memory_db_path) as conn:

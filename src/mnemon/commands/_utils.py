@@ -10,12 +10,63 @@ This module provides reusable functions for:
 - Common patterns
 """
 
+import asyncio
 import sys
+from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import click
 from pydantic import BaseModel
+
+T = TypeVar('T')
+
+
+def run_async(coro: Coroutine[Any, Any, T]) -> T:
+    """
+    Run an async coroutine, handling existing event loops gracefully.
+
+    This function works around the issue where asyncio.run() cannot be called
+    when there's already a running event loop (e.g., in pytest-asyncio tests).
+
+    Args:
+        coro: The coroutine to run
+
+    Returns:
+        The result of the coroutine
+
+    Raises:
+        RuntimeError: If no event loop can be found or created
+    """
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # No event loop set, create a new one with asyncio.run()
+        return asyncio.run(coro)
+
+    # Check if the loop is running
+    if loop.is_running():
+        # We're inside an async context (like pytest-asyncio test)
+        # We need to create a new event loop in a separate thread
+        import concurrent.futures
+
+        def run_in_new_loop():
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_in_new_loop)
+            return future.result()  # type: ignore[no-any-return]
+    else:
+        # Event loop exists but is not running, we can use asyncio.run()
+        # But first close the existing loop to avoid issues
+        loop.close()
+        return asyncio.run(coro)
 
 
 class CLIError(Exception):

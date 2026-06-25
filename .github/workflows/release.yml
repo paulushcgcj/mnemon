@@ -1,91 +1,180 @@
+# .github/workflows/release.yml
 name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*.*.*"
 
 permissions:
-  id-token: write  # Required for PyPI Trusted Publishing
-  contents: read
+  contents: write   # needed to create releases and upload assets
+  id-token: write   # needed for PyPI OIDC publishing
 
 jobs:
-  build:
-    name: Build package
+  # ── 1. Generate changelog ─────────────────────────────────────────────────
+  changelog:
+    name: Generate changelog
     runs-on: ubuntu-latest
+    outputs:
+      release_body: ${{ steps.cliff.outputs.content }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for full git history
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          fetch-depth: 0   # full history required by git-cliff
+
+      - name: Generate release notes with git-cliff
+        id: cliff
+        uses: orhun/git-cliff-action@v4
         with:
-          python-version: "3.12"
-      
-      - name: Set up uv
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+  # ── 2. Build standalone binaries (PyInstaller) ────────────────────────────
+  build-binaries:
+    name: Build binary (${{ matrix.os }})
+    needs: changelog
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: mnemon-linux-x86_64
+            artifact_suffix: linux-x86_64
+          - os: macos-13             # last Intel runner — covers x86_64 Mac users
+            asset_name: mnemon-macos-x86_64
+            artifact_suffix: macos-x86_64
+          - os: macos-latest         # Apple Silicon (M-series)
+            asset_name: mnemon-macos-aarch64
+            artifact_suffix: macos-aarch64
+          - os: windows-latest
+            asset_name: mnemon-windows-x86_64.exe
+            artifact_suffix: windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      
-      - name: Install build dependencies
-        run: uv sync --dev
-      
-      - name: Build package
-        run: uv build
-      
-      - name: Upload artifacts
+
+      - name: Update version to match tag
+        shell: bash
+        run: |
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          uv lock
+
+      - name: Install project + PyInstaller
+        # --frozen ensures CI uses the committed uv.lock exactly — no silent dep drift
+        run: uv sync --frozen --all-extras
+
+      - name: Build binary (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          uv run pyinstaller \
+            --onefile \
+            --name "${{ matrix.asset_name }}" \
+            --add-data "src/mnemon/skill/SKILL.md:mnemon/skill" \
+            src/mnemon/__main__.py
+
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv run pyinstaller `
+            --onefile `
+            --name "${{ matrix.asset_name }}" `
+            --add-data "src/mnemon/skill/SKILL.md;mnemon/skill" `
+            src/mnemon/__main__.py
+
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: binary-${{ matrix.artifact_suffix }}
+          path: dist/${{ matrix.asset_name }}*
+          retention-days: 1
+
+  # ── 3. Build Python distribution (wheel + sdist) ─────────────────────────
+  build-python:
+    name: Build Python package
+    needs: changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Update version to match tag
+        shell: bash
+        run: |
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          uv lock
+
+      - name: Build wheel and source distribution
+        run: uv build
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
           path: dist/
+          retention-days: 1
 
-  test:
-    name: Run tests
-    needs: build
+  # ── 4. Create GitHub Release ──────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [changelog, build-binaries, build-python]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-      
-      - name: Install dependencies
-        run: uv sync --dev
-      
-      - name: Run tests
-        run: pytest --cov=mnemon --cov-fail-under=95
+      - uses: actions/checkout@v4
 
-  publish-pypi:
-    name: Publish to PyPI
-    needs: [build, test]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # Required for PyPI Trusted Publishing
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-      
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
+          path: release-assets/
+          merge-multiple: true
+
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "${{ github.ref_name }}"
+          body: ${{ needs.changelog.outputs.release_body }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: release-assets/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 5. Publish to PyPI ────────────────────────────────────────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/mnemonn/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download python dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
           path: dist/
-      
-      - name: Publish to PyPI
-        run: uv publish
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Publish to PyPI (OIDC — no token needed)
+        run: uv publish --trusted-publishing always
+

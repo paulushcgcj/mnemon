@@ -1,10 +1,11 @@
 """Tests for database connection management."""
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-from mnemon.db.connection import get_db, get_db_path, DEFAULT_DB_PATH
+import pytest
+
+from mnemon.db.connection import DEFAULT_DB_PATH, get_db, get_db_path
 
 
 class TestGetDbPath:
@@ -43,15 +44,13 @@ class TestGetDb:
     async def test_creates_parent_directories(self, temp_db_path):
         """Test that parent directories are created if they don't exist."""
         # Get a unique temp directory that we can create
-        import tempfile
-        import os
         unique_temp = tempfile.mkdtemp()
         test_path = Path(unique_temp) / "subdir" / "test.db"
-        
+
         try:
             async with get_db(path=test_path) as db:
                 assert db is not None
-            
+
             # Check that parent was created
             assert test_path.parent.exists()
         finally:
