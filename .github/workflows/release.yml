@@ -43,10 +43,7 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: mnemon-linux-x86_64
-            artifact_suffix: linux-x86_64
-          - os: macos-13             # last Intel runner — covers x86_64 Mac users
-            asset_name: mnemon-macos-x86_64
-            artifact_suffix: macos-x86_64
+            artifact_suffix: linux-x86_64          
           - os: macos-latest         # Apple Silicon (M-series)
             asset_name: mnemon-macos-aarch64
             artifact_suffix: macos-aarch64
