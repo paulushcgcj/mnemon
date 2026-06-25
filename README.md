@@ -1,6 +1,9 @@
 # Mnemon
 
-[![PyPI version](https://badge.fury.io/py/mnemon.svg)](https://badge.fury.io/py/mnemon)
+[![PyPI version](https://img.shields.io/pypi/v/mnemon.svg)](https://pypi.org/project/mnemon/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mnemon.svg)](https://pypi.org/project/mnemon/)
+[![CI](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml/badge.svg)](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/paulushcgcj/mnemon.svg)](LICENSE)
 
 Persistent project memory and a scoped knowledge graph for AI coding agents.
 
@@ -57,24 +60,32 @@ Important graph entities are automatically included in the session-start context
 
 ## Installation
 
-Mnemon requires Python 3.11 or newer.
+**Mac / Linux**
+```bash
+curl -fsSL https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.sh | bash
+```
 
-### From PyPI (Recommended)
+**Windows (PowerShell)**
+
+```powershell
+irm https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.ps1 | iex
+```
+
+**Via pip / uv (all platforms)**
 
 ```bash
-# Persistent installation
-uv tool install mnemon
-
-# Or with pip
 pip install mnemon
+# or
+uv tool install mnemon
 ```
+
+> **macOS note:** If you see a security warning on first run, clear the quarantine flag once: `xattr -d com.apple.quarantine /usr/local/bin/mnemon`
 
 ### One-off Usage
 
 ```bash
 # Run a command without permanent installation
 uvx mnemon read --help
-uvx mnemon log "Added new feature"
 ```
 
 ### From Source (Development)

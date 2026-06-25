@@ -24,7 +24,6 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
-    "Framework :: MCP",
     "Natural Language :: English",
     "Typing :: Typed",
 ]

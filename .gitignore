@@ -243,3 +243,6 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,macos,linux
 
 .temp/
+
+# git-cliff
+CHANGES.md
