@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mnemon-mcp"
+name = "mnemonn"
 version = "0.1.0"
 description = "Persistent project memory and knowledge graph for AI coding agents"
 readme = "README.md"
@@ -118,10 +118,24 @@ known-first-party = ["mnemon"]
 [tool.coverage.run]
 branch = true
 source = ["src/mnemon"]
+omit = [
+    "src/mnemon/__main__.py",
+]
 
 [tool.coverage.report]
 show_missing = true
 fail_under = 95
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass",
+    "except CLIError as e:",
+    "handle_cli_error(e)",
+]
 
 [dependency-groups]
 dev = [

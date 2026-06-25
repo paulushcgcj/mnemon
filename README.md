@@ -1,7 +1,7 @@
 # Mnemon
 
-[![PyPI version](https://img.shields.io/pypi/v/mnemon-mcp.svg)](https://pypi.org/project/mnemon-mcp/)
-[![Python versions](https://img.shields.io/pypi/pyversions/mnemon-mcp.svg)](https://pypi.org/project/mnemon-mcp/)
+[![PyPI version](https://img.shields.io/pypi/v/mnemonn.svg)](https://pypi.org/project/mnemonn/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mnemonn.svg)](https://pypi.org/project/mnemonn/)
 [![CI](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml/badge.svg)](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/paulushcgcj/mnemon.svg)](LICENSE)
 
@@ -74,9 +74,9 @@ irm https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.ps1 | iex
 **Via pip / uv (all platforms)**
 
 ```bash
-pip install mnemon-mcp
+pip install mnemonn
 # or
-uv tool install mnemon-mcp
+uv tool install mnemonn
 ```
 
 > **macOS note:** If you see a security warning on first run, clear the quarantine flag once: `xattr -d com.apple.quarantine /usr/local/bin/mnemon`
@@ -85,7 +85,7 @@ uv tool install mnemon-mcp
 
 ```bash
 # Run a command without permanent installation
-uvx mnemon read --help
+uvx mnemonn read --help
 ```
 
 ### From Source (Development)
