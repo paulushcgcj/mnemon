@@ -1,29 +1,27 @@
-import pytest
 import subprocess
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-import asyncio
+from unittest.mock import patch
+
+import pytest
 from pydantic import BaseModel
 
-from mnemon.core.git import get_project_id, get_branch, get_commit_context
-from mnemon.core.projects import (
-    upsert_project,
-    list_projects,
-    set_project_parent,
-    get_project_children,
-    get_project_tree,
-)
 from mnemon.commands._utils import (
-    run_async,
+    CLIError,
+    format_output,
+    get_branch_from_cwd,
+    get_project_id_from_cwd,
+    handle_cli_error,
     load_file,
     load_files,
+    run_async,
     write_output,
-    format_output,
-    CLIError,
-    validate_format,
-    handle_cli_error,
-    get_project_id_from_cwd,
-    get_branch_from_cwd,
+)
+from mnemon.core.git import get_branch, get_commit_context, get_project_id
+from mnemon.core.projects import (
+    get_project_children,
+    get_project_tree,
+    list_projects,
+    set_project_parent,
+    upsert_project,
 )
 
 # ── core/git.py coverage ──────────────────────────────────────────────────────
