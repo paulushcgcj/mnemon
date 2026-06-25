@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mnemon"
+name = "mnemon-mcp"
 version = "0.1.0"
 description = "Persistent project memory and knowledge graph for AI coding agents"
 readme = "README.md"

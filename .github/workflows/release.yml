@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write   # needed to create releases and upload assets
+  id-token: write   # needed for PyPI OIDC publishing
 
 jobs:
   # ── 1. Generate changelog ─────────────────────────────────────────────────
@@ -60,6 +61,13 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Update version to match tag
+        shell: bash
+        run: |
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          uv lock
+
       - name: Install project + PyInstaller
         # --frozen ensures CI uses the committed uv.lock exactly — no silent dep drift
         run: uv sync --frozen --all-extras
@@ -102,6 +110,13 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Update version to match tag
+        shell: bash
+        run: |
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          uv lock
+
       - name: Build wheel and source distribution
         run: uv build
 
@@ -137,3 +152,29 @@ jobs:
           files: release-assets/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 5. Publish to PyPI ────────────────────────────────────────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/mnemon-mcp/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download python dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist/
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Publish to PyPI (OIDC — no token needed)
+        run: uv publish --trusted-publishing always
+

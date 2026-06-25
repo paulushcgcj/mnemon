@@ -1,7 +1,7 @@
 # Mnemon
 
-[![PyPI version](https://img.shields.io/pypi/v/mnemon.svg)](https://pypi.org/project/mnemon/)
-[![Python versions](https://img.shields.io/pypi/pyversions/mnemon.svg)](https://pypi.org/project/mnemon/)
+[![PyPI version](https://img.shields.io/pypi/v/mnemon-mcp.svg)](https://pypi.org/project/mnemon-mcp/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mnemon-mcp.svg)](https://pypi.org/project/mnemon-mcp/)
 [![CI](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml/badge.svg)](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/paulushcgcj/mnemon.svg)](LICENSE)
 
@@ -74,9 +74,9 @@ irm https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.ps1 | iex
 **Via pip / uv (all platforms)**
 
 ```bash
-pip install mnemon
+pip install mnemon-mcp
 # or
-uv tool install mnemon
+uv tool install mnemon-mcp
 ```
 
 > **macOS note:** If you see a security warning on first run, clear the quarantine flag once: `xattr -d com.apple.quarantine /usr/local/bin/mnemon`
