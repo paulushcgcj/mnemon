@@ -64,8 +64,8 @@ jobs:
       - name: Update version to match tag
         shell: bash
         run: |
-          TAG_VERSION=${GITHUB_REF_NAME#v}
-          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
           uv lock
 
       - name: Install project + PyInstaller
@@ -113,8 +113,8 @@ jobs:
       - name: Update version to match tag
         shell: bash
         run: |
-          TAG_VERSION=${GITHUB_REF_NAME#v}
-          uv run python -c "import re, os; f='pyproject.toml'; c=open(f).read(); open(f,'w').write(re.sub(r'^version\s*=\s*\".*\"', f'version = \"{TAG_VERSION}\"', c, flags=re.MULTILINE))"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" pyproject.toml
           uv lock
 
       - name: Build wheel and source distribution
