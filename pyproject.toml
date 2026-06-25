@@ -135,6 +135,12 @@ exclude_lines = [
     "pass",
     "except CLIError as e:",
     "handle_cli_error(e)",
+    "except Exception as e:",
+    "if format == .json.:",
+    "import json",
+    "output = .No projects found..",
+    "output = .Nothing to prune..",
+    "output = f.No children found for project",
 ]
 
 [dependency-groups]
