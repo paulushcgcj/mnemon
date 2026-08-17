@@ -76,7 +76,6 @@ jobs:
           uv run pyinstaller \
             --onefile \
             --name "${{ matrix.asset_name }}" \
-            --add-data "src/mnemon/skill/SKILL.md:mnemon/skill" \
             src/mnemon/__main__.py
 
       - name: Build binary (Windows)
@@ -85,7 +84,6 @@ jobs:
           uv run pyinstaller `
             --onefile `
             --name "${{ matrix.asset_name }}" `
-            --add-data "src/mnemon/skill/SKILL.md;mnemon/skill" `
             src/mnemon/__main__.py
 
       - name: Upload binary artifact

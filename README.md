@@ -71,11 +71,9 @@ curl -fsSL https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.sh 
 irm https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.ps1 | iex
 ```
 
-**Via pip / uv (all platforms)**
+**Via uv (all platforms)**
 
 ```bash
-pip install mnemonn
-# or
 uv tool install mnemonn
 ```
 
@@ -114,8 +112,6 @@ Install Mnemon, then set up a repository:
 uv tool install /path/to/mnemon
 cd /path/to/your/repo
 mnemon init
-mnemon install
-bash /path/to/mnemon/install-hooks.sh
 ```
 
 `mnemon init` creates:
@@ -125,23 +121,6 @@ bash /path/to/mnemon/install-hooks.sh
 ```
 
 The file tells the agent to call Mnemon at session start and session end.
-
-`mnemon install` creates:
-
-```text
-.github/skills/mnemon/SKILL.md
-```
-
-The skill tells the agent how to handle requests such as "remember this", "save this decision", or "add this to the knowledge graph".
-
-The hook installer links:
-
-```text
-.git/hooks/post-commit
-.git/hooks/post-merge
-```
-
-Those hooks log commits into Mnemon's session history.
 
 ## MCP Configuration
 
@@ -172,13 +151,6 @@ mnemon init --force
 Generate `.github/copilot-instructions.md` for the current repository. Mnemon detects the project id from `git remote get-url origin`, using the `owner/repo` slug.
 
 ```bash
-mnemon install
-mnemon install --force
-```
-
-Install the Mnemon skill into `.github/skills/mnemon/SKILL.md`.
-
-```bash
 mnemon read
 mnemon read --project owner/repo --branch main
 ```
@@ -206,12 +178,6 @@ mnemon projects
 ```
 
 List projects known to the local memory store.
-
-```bash
-mnemon log-commit
-```
-
-Log the latest commit. This is normally called by the installed git hooks.
 
 ## MCP Tools
 
