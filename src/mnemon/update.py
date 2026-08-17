@@ -95,9 +95,11 @@ def cache_path() -> Path:
     )
 
 
-def _read_cache(path: Path, now: datetime) -> UpdateStatus | None:
+def _read_cache(path: Path, now: datetime, installed: str) -> UpdateStatus | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if data["installed_version"] != installed:
+            return None
         checked_at = datetime.fromisoformat(data["checked_at"])
         if now - checked_at >= UPDATE_CHECK_INTERVAL:
             return None
@@ -131,7 +133,7 @@ def check_for_update(
 
     path = cache_path()
     if not force:
-        cached = _read_cache(path, current_time)
+        cached = _read_cache(path, current_time, current)
         if cached is not None:
             return cached
 
