@@ -137,6 +137,19 @@ After that, compatible agents can call Mnemon's tools directly.
 
 ## CLI
 
+The root command displays the installed version in `--help` and supports the
+conventional `--version` option:
+
+```bash
+mnemon --version
+```
+
+Normal commands perform a cached daily update check. If a newer release is
+available, Mnemon prints a notice to stderr and continues without changing the
+command's normal output. Network failures are ignored, and checks can be
+disabled with `MNEMON_NO_UPDATE_CHECK=1`. Run `mnemon update` to inspect or
+apply an update explicitly.
+
 ```bash
 mnemon serve
 ```

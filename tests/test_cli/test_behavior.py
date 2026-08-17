@@ -13,7 +13,7 @@ from mnemon.db.migrations import run_migrations
 
 
 def invoke(args: list[str]):
-    return CliRunner().invoke(cli, args)
+    return CliRunner().invoke(cli, args, env={"MNEMON_NO_UPDATE_CHECK": "1"})
 
 
 async def seed_project_graph(db_path: Path, project_id: str = "owner/repo") -> None:

@@ -6,10 +6,32 @@ command modules register themselves via :func:`_register_commands`.
 
 import click
 
+from .update import check_for_update, installed_version
 
-@click.group()
-def cli() -> None:
+
+def _notify_update() -> None:
+    """Print a non-blocking update notice when a newer release is available."""
+    status = check_for_update()
+    if status.update_available and status.latest_version:
+        click.echo(
+            f"Update available: {status.installed_version} → {status.latest_version}. "
+            "Run `mnemon update` to upgrade.",
+            err=True,
+        )
+
+
+@click.group(
+    help=(
+        "Mnemon — persistent project memory and knowledge graph for AI agents.\n\n"
+        f"Version: {installed_version()}"
+    )
+)
+@click.version_option(version=installed_version(), prog_name="mnemon")
+@click.pass_context
+def cli(ctx: click.Context) -> None:
     """Mnemon — persistent project memory and knowledge graph for AI agents."""
+    if ctx.invoked_subcommand not in (None, "update"):
+        _notify_update()
 
 
 def _register_commands() -> None:
