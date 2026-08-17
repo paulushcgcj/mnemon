@@ -114,6 +114,54 @@ def init(cwd: str | None, force: bool, format: str, out: str | None) -> None:
     write_output(output, Path(out) if out else None, format)
 
 
+@click.command("update")
+@click.option("--apply", is_flag=True, help="Apply the update with uv after an update is found")
+@click.option("--format", "output_format", default="text", help="Output format (text or json)")
+@click.option("--out", default=None, type=click.Path(), help="Output file path (default: stdout)")
+@cli_guard
+def update(apply: bool, output_format: str, out: str | None) -> None:
+    """Check for a newer Mnemon release and optionally upgrade with uv."""
+    validate_format(output_format)
+
+    from ..update import check_for_update, installation_guidance
+
+    status = check_for_update()
+    if status.error:
+        message = f"Update check skipped: {status.error}"
+    elif status.skipped:
+        message = "Update checks are disabled by MNEMON_NO_UPDATE_CHECK=1."
+    elif not status.update_available:
+        message = f"Mnemon is up to date ({status.installed_version})."
+    elif apply:
+        from ..update import apply_uv_upgrade
+
+        result = apply_uv_upgrade()
+        message = (
+            result.stdout.strip()
+            or f"Updated Mnemon from {status.installed_version} to {status.latest_version}."
+        )
+    else:
+        message = (
+            f"Update available: {status.installed_version} → {status.latest_version}.\n"
+            f"Run `mnemon update --apply` to update explicitly.\n{installation_guidance()}"
+        )
+
+    if output_format == "json":
+        payload = {
+            "installedVersion": status.installed_version,
+            "latestVersion": status.latest_version,
+            "updateAvailable": status.update_available,
+            "skipped": status.skipped,
+            "error": status.error,
+            "message": message,
+        }
+        output = json.dumps(payload, indent=2)
+    else:
+        output = message
+    write_output(output, Path(out) if out else None, output_format)
+
+
 def register(cli_group: click.Group) -> None:
     """Register the setup commands on the Click group."""
     cli_group.add_command(init)
+    cli_group.add_command(update)
