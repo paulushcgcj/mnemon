@@ -61,10 +61,20 @@ def test_check_for_update_honors_opt_out(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_apply_uv_upgrade(monkeypatch: pytest.MonkeyPatch) -> None:
     """Explicit upgrades invoke uv without shell evaluation."""
     completed = SimpleNamespace(stdout="upgraded\n")
+    captured: dict[str, object] = {}
+
     monkeypatch.setattr(update.shutil, "which", lambda executable: "/usr/bin/uv")
-    monkeypatch.setattr(update.subprocess, "run", lambda *args, **kwargs: completed)
+
+    def run(*args: object, **kwargs: object) -> SimpleNamespace:
+        captured["args"] = args
+        captured.update(kwargs)
+        return completed
+
+    monkeypatch.setattr(update.subprocess, "run", run)
 
     assert update.apply_uv_upgrade() is completed
+    assert captured["cwd"] == update.tempfile.gettempdir()
+    assert captured["check"] is True
 
 
 def test_update_command_reports_available_release(monkeypatch: pytest.MonkeyPatch) -> None:
