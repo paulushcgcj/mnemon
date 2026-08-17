@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from importlib.metadata import PackageNotFoundError, version
@@ -153,7 +154,7 @@ def check_for_update(
 
 
 def apply_uv_upgrade() -> subprocess.CompletedProcess[str]:
-    """Run the explicitly requested uv tool upgrade without shell evaluation."""
+    """Run the explicitly requested uv tool upgrade without local-project shadowing."""
     if shutil.which("uv") is None:
         raise RuntimeError("uv is not installed or is not on PATH")
     try:
@@ -162,6 +163,7 @@ def apply_uv_upgrade() -> subprocess.CompletedProcess[str]:
             check=True,
             capture_output=True,
             text=True,
+            cwd=tempfile.gettempdir(),
         )
     except (OSError, subprocess.CalledProcessError) as error:
         raise RuntimeError(f"uv tool upgrade failed: {error}") from error
