@@ -1,10 +1,7 @@
-"""
-Commands Package
-================
-Central registration point for all CLI commands.
+"""Central registration point for all CLI commands.
 
-Commands are organized and registered here for better maintainability
-and discoverability.
+Commands are organized and registered here for better maintainability and
+discoverability.
 """
 
 from typing import TYPE_CHECKING
@@ -13,8 +10,6 @@ from typing import TYPE_CHECKING
 COMMAND_NAMES = [
     "serve",
     "init",
-    "install",
-    "log-commit",
     "read",
     "graph",
     "prune",

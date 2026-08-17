@@ -26,6 +26,7 @@ SAMPLES_DIR = PROJECT_ROOT / "tests" / "samples"
 def temp_db_path():
     """Create a temporary database path for testing."""
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
     yield db_path
@@ -111,6 +112,7 @@ def mock_db_path(mocker):
 
 # Sample data fixtures
 
+
 @pytest.fixture
 def sample_session_data() -> dict:
     """Return sample session data."""
@@ -141,14 +143,17 @@ def sample_entity_data() -> dict:
 
 # Parametrized fixtures for edge cases
 
-@pytest.fixture(params=[
-    "",                           # Empty string
-    "   ",                       # Whitespace only
-    "SELECT * FROM",              # Incomplete SQL
-    "DROP TABLE users;",          # Potentially dangerous
-    "äöü",                       # Unicode
-    "a" * 10000,                 # Very long string
-])
+
+@pytest.fixture(
+    params=[
+        "",  # Empty string
+        "   ",  # Whitespace only
+        "SELECT * FROM",  # Incomplete SQL
+        "DROP TABLE users;",  # Potentially dangerous
+        "äöü",  # Unicode
+        "a" * 10000,  # Very long string
+    ]
+)
 def edge_case_input(request) -> str:
     """Parametrized fixture for edge case inputs."""
     return request.param

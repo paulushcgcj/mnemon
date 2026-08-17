@@ -1,3 +1,4 @@
+from typing import Any
 
 import aiosqlite
 
@@ -26,9 +27,7 @@ async def upsert_project(
     # Check for circular reference in the tree (only if parent exists)
     if parent_id:
         # First check if parent exists
-        async with db.execute(
-            "SELECT 1 FROM projects WHERE id = ?", (parent_id,)
-        ) as cur:
+        async with db.execute("SELECT 1 FROM projects WHERE id = ?", (parent_id,)) as cur:
             parent_exists = await cur.fetchone() is not None
 
         if parent_exists:
@@ -74,7 +73,7 @@ async def list_projects(
     db: aiosqlite.Connection,
     parent_id: str | None = None,
     include_children: bool = False,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     List projects, optionally filtered by parent.
 
@@ -120,7 +119,7 @@ async def get_project_children(
     db: aiosqlite.Connection,
     project_id: str,
     recursive: bool = False,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get direct children of a project.
 
@@ -180,9 +179,7 @@ async def set_project_parent(
     # Check for circular reference in the tree (only if parent exists)
     if parent_id:
         # First check if parent exists
-        async with db.execute(
-            "SELECT 1 FROM projects WHERE id = ?", (parent_id,)
-        ) as cur:
+        async with db.execute("SELECT 1 FROM projects WHERE id = ?", (parent_id,)) as cur:
             parent_exists = await cur.fetchone() is not None
 
         if parent_exists:
@@ -206,18 +203,18 @@ async def set_project_parent(
                         f"would be an ancestor of its parent '{parent_id}'."
                     )
 
-    result = await db.execute(  # type: ignore[assignment]
+    update_result = await db.execute(
         "UPDATE projects SET parent_id = ? WHERE id = ?",
         (parent_id, project_id),
     )
     await db.commit()
-    return result.rowcount > 0  # type: ignore[union-attr,no-any-return]
+    return update_result.rowcount > 0
 
 
 async def get_project_tree(
     db: aiosqlite.Connection,
     project_id: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get the full project tree as a nested structure.
 
@@ -261,10 +258,12 @@ async def get_project_tree(
             all_projects = [dict(r) for r in await cur.fetchall()]
 
     # Build nested structure
-    def build_tree(projects, parent_id=None):
+    def build_tree(
+        projects: list[dict[str, Any]], parent_id: str | None = None
+    ) -> list[dict[str, Any]]:
         children = [p for p in projects if p.get("parent_id") == parent_id]
         for child in children:
             child["children"] = build_tree(projects, child["id"])
         return children
 
-    return build_tree(all_projects)  # type: ignore[no-any-return]
+    return build_tree(all_projects)

@@ -90,6 +90,7 @@ ENTITY_ICON = {
 
 # ── Validation Helpers ────────────────────────────────────────────────────────
 
+
 def validate_entity_type(entity_type: str | None) -> str:
     """
     Validate entity type.
@@ -107,10 +108,7 @@ def validate_entity_type(entity_type: str | None) -> str:
         return DEFAULT_ENTITY_TYPE
     if entity_type not in ENTITY_TYPES:
         valid = ", ".join(sorted(ENTITY_TYPES))
-        raise ValueError(
-            f"Invalid entity_type '{entity_type}'. "
-            f"Must be one of: {valid}"
-        )
+        raise ValueError(f"Invalid entity_type '{entity_type}'. Must be one of: {valid}")
     return entity_type
 
 
@@ -131,10 +129,7 @@ def validate_task_status(status: str | None) -> str:
         return DEFAULT_TASK_STATUS
     if status not in TASK_STATUSES:
         valid = ", ".join(sorted(TASK_STATUSES))
-        raise ValueError(
-            f"Invalid status '{status}'. "
-            f"Must be one of: {valid}"
-        )
+        raise ValueError(f"Invalid status '{status}'. Must be one of: {valid}")
     return status
 
 
@@ -155,7 +150,6 @@ def validate_importance(importance: float | None) -> float:
         return DEFAULT_IMPORTANCE
     if not (MIN_IMPORTANCE <= importance <= MAX_IMPORTANCE):
         raise ValueError(
-            f"Importance must be between {MIN_IMPORTANCE} and {MAX_IMPORTANCE}. "
-            f"Got: {importance}"
+            f"Importance must be between {MIN_IMPORTANCE} and {MAX_IMPORTANCE}. Got: {importance}"
         )
     return importance

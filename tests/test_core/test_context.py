@@ -74,7 +74,9 @@ class TestBuildContext:
 
     async def test_context_with_graph_entities(self, db, project_id, branch):
         """Test context includes graph entities above threshold."""
-        entity_id = await upsert_entity(db, project_id, "ImportantComponent", "component", importance=0.8, branch=branch)
+        entity_id = await upsert_entity(
+            db, project_id, "ImportantComponent", "component", importance=0.8, branch=branch
+        )
         await add_observation(db, entity_id, "Important observation")
 
         context = await build_context(db, project_id, branch)
@@ -86,7 +88,9 @@ class TestBuildContext:
     async def test_context_excludes_low_importance_entities(self, db, project_id, branch):
         """Test that low importance entities are excluded from context."""
         # Add entity with importance below threshold (0.4)
-        await upsert_entity(db, project_id, "LowImportance", "component", importance=0.3, branch=branch)
+        await upsert_entity(
+            db, project_id, "LowImportance", "component", importance=0.3, branch=branch
+        )
 
         context = await build_context(db, project_id, branch)
 

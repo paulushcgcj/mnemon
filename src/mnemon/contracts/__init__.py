@@ -1,10 +1,7 @@
-"""
-Contracts Package
-=================
-JSON output contracts for mnemon CLI.
+"""Pydantic JSON output contracts for the Mnemon CLI.
 
-This package contains Pydantic models that define the JSON output contracts
-for all mnemon CLI commands, providing:
+Contains the Pydantic models that define the JSON output contracts for all
+Mnemon CLI commands, providing:
 - Type safety for command outputs
 - Standardized JSON schemas
 - IDE autocomplete support

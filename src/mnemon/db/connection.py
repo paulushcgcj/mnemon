@@ -1,4 +1,5 @@
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def get_db_path() -> Path:
 
 
 @asynccontextmanager
-async def get_db(path: str | Path | None = None):
+async def get_db(path: str | Path | None = None) -> AsyncIterator[aiosqlite.Connection]:
     """
     Get a database connection.
 

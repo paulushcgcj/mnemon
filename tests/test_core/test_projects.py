@@ -2,7 +2,13 @@
 
 import pytest
 
-from mnemon.core.projects import list_projects, upsert_project
+from mnemon.core.projects import (
+    get_project_children,
+    get_project_tree,
+    list_projects,
+    set_project_parent,
+    upsert_project,
+)
 
 
 @pytest.mark.asyncio
@@ -117,3 +123,53 @@ class TestProjects:
         assert ordered[0]["id"] == "a-test-owner/a-test-repo"
         assert ordered[1]["id"] == "m-test-owner/m-test-repo"
         assert ordered[2]["id"] == "z-test-owner/z-test-repo"
+
+
+@pytest.mark.asyncio
+class TestProjectHierarchy:
+    """Tests for project hierarchy validation and traversal."""
+
+    async def test_upsert_project_self_parent(self, db):
+        """Raising when a project is its own parent."""
+        with pytest.raises(ValueError, match="cannot be its own parent"):
+            await upsert_project(db, "SELF_P", parent_id="SELF_P")
+
+    async def test_upsert_project_circular_reference(self, db):
+        """Raising when a parent would create a cycle."""
+        await upsert_project(db, "CIRC_A")
+        await upsert_project(db, "CIRC_B", parent_id="CIRC_A")
+
+        with pytest.raises(ValueError, match="Circular reference detected"):
+            await upsert_project(db, "CIRC_A", parent_id="CIRC_B")
+
+    async def test_set_project_parent_circular_reference(self, db):
+        """Raising when re-parenting would create a cycle."""
+        await upsert_project(db, "SET_A")
+        await upsert_project(db, "SET_B", parent_id="SET_A")
+
+        with pytest.raises(ValueError, match="Circular reference detected"):
+            await set_project_parent(db, "SET_A", "SET_B")
+
+    async def test_list_projects_recursive(self, db):
+        """Listing a subtree with all descendants."""
+        await upsert_project(db, "ROOT_REC")
+        await upsert_project(db, "CHILD_REC", parent_id="ROOT_REC")
+        await upsert_project(db, "GRAND_REC", parent_id="CHILD_REC")
+
+        results = await list_projects(db, parent_id="ROOT_REC", include_children=True)
+        ids = {r["id"] for r in results}
+        assert ids == {"ROOT_REC", "CHILD_REC", "GRAND_REC"}
+
+    async def test_get_project_children_recursive(self, db):
+        """Getting all descendants of a project."""
+        await upsert_project(db, "p_rec")
+        await upsert_project(db, "c_rec", parent_id="p_rec")
+        await upsert_project(db, "g_rec", parent_id="c_rec")
+
+        children = await get_project_children(db, "p_rec", recursive=True)
+        assert {c["id"] for c in children} == {"c_rec", "g_rec"}
+
+    async def test_get_project_tree_returns_list(self, db):
+        """Getting the full project tree."""
+        tree = await get_project_tree(db)
+        assert isinstance(tree, list)

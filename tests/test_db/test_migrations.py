@@ -23,9 +23,7 @@ class TestMigrations:
             "relations",
         }
 
-        async with in_memory_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ) as cur:
+        async with in_memory_db.execute("SELECT name FROM sqlite_master WHERE type='table'") as cur:
             rows = await cur.fetchall()
             actual_tables = {row[0] for row in rows}
 
@@ -37,9 +35,7 @@ class TestMigrations:
         await run_migrations(in_memory_db)
 
         # Should not raise any errors
-        async with in_memory_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ) as cur:
+        async with in_memory_db.execute("SELECT name FROM sqlite_master WHERE type='table'") as cur:
             rows = await cur.fetchall()
             assert len(rows) > 0
 
@@ -55,9 +51,7 @@ class TestMigrations:
             "idx_relations_to",
         }
 
-        async with in_memory_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        ) as cur:
+        async with in_memory_db.execute("SELECT name FROM sqlite_master WHERE type='index'") as cur:
             rows = await cur.fetchall()
             actual_indexes = {row[0] for row in rows}
 

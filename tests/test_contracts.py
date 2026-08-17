@@ -70,7 +70,9 @@ def test_graph_contract_aliases_and_defaults():
         entityCount=1,
         relationCount=1,
     )
-    search = EntitySearchResult(query="Api", projectId="owner/repo", results=[entity], total=1, limit=10)
+    search = EntitySearchResult(
+        query="Api", projectId="owner/repo", results=[entity], total=1, limit=10
+    )
     prune = GraphPruneResult(
         projectId="owner/repo",
         belowImportance=0.2,
@@ -131,9 +133,19 @@ def test_memory_contract_aliases_and_defaults():
 
     assert graph.model_dump(by_alias=True)["totalCount"] == 1
     assert observation.model_dump(by_alias=True)["entityId"] == "entity-1"
-    assert TaskList(tasks=[task], total=1, byStatus={"todo": 1}).model_dump(by_alias=True)["byStatus"]["todo"] == 1
+    assert (
+        TaskList(tasks=[task], total=1, byStatus={"todo": 1}).model_dump(by_alias=True)["byStatus"][
+            "todo"
+        ]
+        == 1
+    )
     assert decision.model_dump(by_alias=True)["projectId"] == "owner/repo"
-    assert SessionList(sessions=[session], total=1).model_dump(by_alias=True)["sessions"][0]["sessionId"] == "session-1"
+    assert (
+        SessionList(sessions=[session], total=1).model_dump(by_alias=True)["sessions"][0][
+            "sessionId"
+        ]
+        == "session-1"
+    )
 
 
 def test_project_contract_aliases_and_registry():
@@ -166,4 +178,3 @@ def test_project_contract_aliases_and_registry():
         get_contract("graph", "Missing")
     with pytest.raises(KeyError, match="Category 'missing'"):
         list_contracts("missing")
-

@@ -53,15 +53,11 @@ class TestCLI:
         result = runner.invoke(cli, ["init", "--help"])
         assert result.exit_code == 0
 
-    def test_install_command_help(self, runner):
-        """Test that install command help works."""
-        result = runner.invoke(cli, ["install", "--help"])
-        assert result.exit_code == 0
-
-    def test_log_commit_command_help(self, runner):
-        """Test that log-commit command help works."""
-        result = runner.invoke(cli, ["log-commit", "--help"])
-        assert result.exit_code == 0
+    def test_removed_commands_not_registered(self, runner):
+        """Removed commands (install, log-commit) are no longer registered."""
+        for command in ["install", "log-commit"]:
+            result = runner.invoke(cli, [command, "--help"])
+            assert result.exit_code != 0
 
     def test_db_path_option(self, runner):
         """Test that --db-path option is available on commands."""

@@ -56,6 +56,7 @@ class TestGetDb:
         finally:
             # Cleanup
             import shutil
+
             shutil.rmtree(unique_temp, ignore_errors=True)
 
     async def test_in_memory_database(self):

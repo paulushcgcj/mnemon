@@ -1,13 +1,7 @@
-"""
-Contract Registry
-================
-Registry of all Pydantic models used for JSON output contracts.
+"""Registry of all Pydantic models used for JSON output contracts.
 
-This enables:
-- Discovery of all available contracts
-- Type hints for IDE autocomplete
-- Documentation generation
-- Runtime validation of contract usage
+Enables discovery of all available contracts, type hints for IDE autocomplete,
+documentation generation, and runtime validation of contract usage.
 """
 
 from pydantic import BaseModel
@@ -51,14 +45,12 @@ CONTRACTS: dict[str, dict[str, ContractType]] = {
         "SessionInfo": SessionInfo,
         "SessionList": SessionList,
     },
-
     # Project contracts
     "project": {
         "ProjectInfo": ProjectInfo,
         "ProjectList": ProjectList,
         "ProjectContext": ProjectContext,
     },
-
     # Graph contracts
     "graph": {
         "GraphEntity": GraphEntity,
@@ -93,7 +85,7 @@ __all__ = [
 ]
 
 
-def get_contract(category: str, name: str):
+def get_contract(category: str, name: str) -> ContractType:
     """
     Get a contract model by category and name.
 
