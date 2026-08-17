@@ -1,16 +1,36 @@
+"""Git integration helpers — project ID, branch, and commit context resolution."""
+
 import re
 import subprocess
+from typing import TypedDict
 
 
-def _git(*args, cwd: str | None = None) -> str:
-    return subprocess.check_output(
-        ["git", *args], cwd=cwd, stderr=subprocess.DEVNULL
-    ).decode().strip()
+class DetachedHeadError(RuntimeError):
+    """Raised when the repository HEAD is in a detached state (no current branch)."""
+
+
+class CommitContext(TypedDict):
+    """Context about the current commit."""
+
+    sha: str
+    short_sha: str
+    message: str
+    author: str
+    files: list[str]
+    stat: str
+    is_first_commit: bool
+
+
+def _git(*args: str, cwd: str | None = None) -> str:
+    return (
+        subprocess.check_output(["git", *args], cwd=cwd, stderr=subprocess.DEVNULL).decode().strip()
+    )
 
 
 def get_project_id(cwd: str | None = None) -> str:
     """
     Extract 'owner/repo' from git remote URL.
+
     Handles SSH:   git@github.com:bcgov/nr-waste-plus.git
     Handles HTTPS: https://github.com/bcgov/nr-waste-plus.git
     """
@@ -25,42 +45,53 @@ def get_project_id(cwd: str | None = None) -> str:
 
 
 def get_branch(cwd: str | None = None) -> str:
-    return _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd)
+    """
+    Return the current branch name.
+
+    Raises:
+        DetachedHeadError: If HEAD is detached (no current branch).
+    """
+    ref = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd)
+    if ref == "HEAD":
+        raise DetachedHeadError(
+            "Detached HEAD detected. Check out a branch or pass --branch explicitly."
+        )
+    return ref
 
 
-def get_commit_context(cwd: str | None = None) -> dict:
+def get_commit_context(cwd: str | None = None) -> CommitContext:
     """
     Get context about the current commit.
 
-    Returns a dict with:
-    - sha: Full commit hash
-    - short_sha: First 8 characters of hash
-    - message: Commit message
-    - author: Author name
-    - files: List of changed files (empty for first commit)
-    - stat: Diff stat (empty for first commit)
+    Returns:
+        - sha: Full commit hash
+        - short_sha: First 8 characters of hash
+        - message: Commit message
+        - author: Author name
+        - files: List of changed files (empty for first commit)
+        - stat: Diff stat (empty for first commit)
 
     Handles first commit (no parent) gracefully.
     """
-    sha     = _git("rev-parse", "HEAD", cwd=cwd)
+    sha = _git("rev-parse", "HEAD", cwd=cwd)
     message = _git("log", "-1", "--pretty=%B", cwd=cwd).strip()
-    author  = _git("log", "-1", "--pretty=%an", cwd=cwd)
+    author = _git("log", "-1", "--pretty=%an", cwd=cwd)
 
     # Try to get diff from parent, but handle first commit
     try:
-        files   = _git("diff", "HEAD~1", "HEAD", "--name-only", cwd=cwd).splitlines()
-        stat    = _git("diff", "HEAD~1", "HEAD", "--stat", cwd=cwd)
+        files = _git("diff", "HEAD~1", "HEAD", "--name-only", cwd=cwd).splitlines()
+        stat = _git("diff", "HEAD~1", "HEAD", "--stat", cwd=cwd)
     except subprocess.CalledProcessError:
         # This is the first commit, no parent
-        files   = []
-        stat    = ""
+        files = []
+        stat = ""
 
     return {
-        "sha":       sha,
+        "sha": sha,
         "short_sha": sha[:8],
-        "message":   message,
-        "author":    author,
-        "files":     [f for f in files if f],
-        "stat":      stat,
+        "message": message,
+        "author": author,
+        "files": [f for f in files if f],
+        "stat": stat,
         "is_first_commit": len(files) == 0 and len(stat) == 0,
     }

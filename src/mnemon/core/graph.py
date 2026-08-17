@@ -10,11 +10,18 @@ Better than Anthropic's memory server because:
 - Relations surface in the context block automatically
 """
 
+from typing import Any, cast
+
 import aiosqlite
 
-from .constants import DEFAULT_OBSERVATION_SOURCE
+from .constants import (
+    DEFAULT_OBSERVATION_SOURCE,
+    validate_entity_type,
+    validate_importance,
+)
 
 # ── Entities ──────────────────────────────────────────────────────────────────
+
 
 async def upsert_entity(
     db: aiosqlite.Connection,
@@ -25,11 +32,6 @@ async def upsert_entity(
     branch: str | None = None,
 ) -> str:
     """Create entity if it doesn't exist; update type/importance if it does."""
-    # Validate inputs
-    from .constants import (
-        validate_entity_type,
-        validate_importance,
-    )
     entity_type = validate_entity_type(entity_type)
     importance = validate_importance(importance)
 
@@ -47,12 +49,10 @@ async def upsert_entity(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]  # type: ignore[index,no-any-return]
+        return cast(str, row[0]) if row is not None else ""
 
 
-async def delete_entity(
-    db: aiosqlite.Connection, project_id: str, name: str
-) -> bool:
+async def delete_entity(db: aiosqlite.Connection, project_id: str, name: str) -> bool:
     result = await db.execute(
         "DELETE FROM entities WHERE project_id = ? AND name = ?",
         (project_id, name),
@@ -63,7 +63,7 @@ async def delete_entity(
 
 async def get_entity_by_name(
     db: aiosqlite.Connection, project_id: str, name: str
-) -> dict | None:
+) -> dict[str, Any] | None:
     async with db.execute(
         "SELECT * FROM entities WHERE project_id = ? AND name = ?",
         (project_id, name),
@@ -78,33 +78,30 @@ async def list_entities(
     entity_type: str | None = None,
     branch: str | None = None,
     limit: int = 50,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return entities ordered by importance descending."""
+    params: list[Any] = [project_id]
+    type_filter = ""
     if entity_type:
-        async with db.execute(
-            """
-            SELECT * FROM entities
-            WHERE project_id = ? AND entity_type = ?
-              AND (branch IS NULL OR ? IS NULL OR branch = ?)
-            ORDER BY importance DESC, updated_at DESC LIMIT ?
-            """,
-            (project_id, entity_type, branch, branch, limit),
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
+        type_filter = "AND entity_type = ?"
+        params.append(entity_type)
+    params.extend([branch, branch, limit])
 
     async with db.execute(
-        """
+        f"""
         SELECT * FROM entities
         WHERE project_id = ?
+          {type_filter}
           AND (branch IS NULL OR ? IS NULL OR branch = ?)
         ORDER BY importance DESC, updated_at DESC LIMIT ?
         """,
-        (project_id, branch, branch, limit),
+        tuple(params),
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
 
 # ── Observations ──────────────────────────────────────────────────────────────
+
 
 async def add_observation(
     db: aiosqlite.Connection,
@@ -118,20 +115,16 @@ async def add_observation(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]  # type: ignore[index,no-any-return]
+        return cast(str, row[0]) if row is not None else ""
 
 
 async def delete_observation(db: aiosqlite.Connection, observation_id: str) -> bool:
-    result = await db.execute(
-        "DELETE FROM observations WHERE id = ?", (observation_id,)
-    )
+    result = await db.execute("DELETE FROM observations WHERE id = ?", (observation_id,))
     await db.commit()
     return result.rowcount > 0
 
 
-async def get_observations(
-    db: aiosqlite.Connection, entity_id: str
-) -> list[dict]:
+async def get_observations(db: aiosqlite.Connection, entity_id: str) -> list[dict[str, Any]]:
     async with db.execute(
         "SELECT * FROM observations WHERE entity_id = ? ORDER BY created_at ASC",
         (entity_id,),
@@ -140,6 +133,7 @@ async def get_observations(
 
 
 # ── Relations ─────────────────────────────────────────────────────────────────
+
 
 async def add_relation(
     db: aiosqlite.Connection,
@@ -159,7 +153,7 @@ async def add_relation(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]  # type: ignore[index,no-any-return]
+        return cast(str, row[0]) if row is not None else ""
 
 
 async def delete_relation(db: aiosqlite.Connection, relation_id: str) -> bool:
@@ -168,9 +162,7 @@ async def delete_relation(db: aiosqlite.Connection, relation_id: str) -> bool:
     return result.rowcount > 0
 
 
-async def get_relations_for(
-    db: aiosqlite.Connection, entity_id: str
-) -> list[dict]:
+async def get_relations_for(db: aiosqlite.Connection, entity_id: str) -> list[dict[str, Any]]:
     """Return outgoing and incoming relations with entity names resolved."""
     async with db.execute(
         """
@@ -200,53 +192,44 @@ async def get_relations_for(
 
 # ── Search ────────────────────────────────────────────────────────────────────
 
+
 async def search_entities(
     db: aiosqlite.Connection,
     project_id: str,
     query: str,
     entity_type: str | None = None,
     limit: int = 10,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Search entities by name or observation content.
     Returns entities ranked by importance, with matching observations attached.
     """
     like = f"%{query}%"
-
+    params: list[Any] = [project_id]
+    type_filter = ""
     if entity_type:
-        # With entity_type filter
-        async with db.execute(
-            """
-            SELECT DISTINCT e.*
-            FROM entities e
-            LEFT JOIN observations o ON o.entity_id = e.id
-            WHERE e.project_id = ?
-              AND e.entity_type = ?
-              AND (e.name LIKE ? OR o.content LIKE ?)
-            ORDER BY e.importance DESC
-            LIMIT ?
-            """,
-            (project_id, entity_type, like, like, limit),
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-    else:
-        # Without entity_type filter
-        async with db.execute(
-            """
-            SELECT DISTINCT e.*
-            FROM entities e
-            LEFT JOIN observations o ON o.entity_id = e.id
-            WHERE e.project_id = ?
-              AND (e.name LIKE ? OR o.content LIKE ?)
-            ORDER BY e.importance DESC
-            LIMIT ?
-            """,
-            (project_id, like, like, limit),
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
+        type_filter = "AND e.entity_type = ?"
+        params.append(entity_type)
+    params.extend([like, like, limit])
+
+    async with db.execute(
+        f"""
+        SELECT DISTINCT e.*
+        FROM entities e
+        LEFT JOIN observations o ON o.entity_id = e.id
+        WHERE e.project_id = ?
+          {type_filter}
+          AND (e.name LIKE ? OR o.content LIKE ?)
+        ORDER BY e.importance DESC
+        LIMIT ?
+        """,
+        tuple(params),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
 
 
 # ── Full graph read ───────────────────────────────────────────────────────────
+
 
 async def get_full_graph(
     db: aiosqlite.Connection,
@@ -254,7 +237,7 @@ async def get_full_graph(
     branch: str | None = None,
     importance_min: float = 0.0,
     limit: int = 30,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Return entities with their observations and relations.
     Ordered by importance so the most useful entities surface first.
@@ -264,14 +247,15 @@ async def get_full_graph(
 
     result = []
     for entity in entities:
-        obs      = await get_observations(db, entity["id"])
-        rels     = await get_relations_for(db, entity["id"])
+        obs = await get_observations(db, entity["id"])
+        rels = await get_relations_for(db, entity["id"])
         result.append({**entity, "observations": obs, "relations": rels})
 
     return result
 
 
 # ── Pruning ───────────────────────────────────────────────────────────────────
+
 
 async def prune_entities(
     db: aiosqlite.Connection,
@@ -294,3 +278,27 @@ async def prune_entities(
     )
     await db.commit()
     return result.rowcount
+
+
+async def list_prunable_entities(
+    db: aiosqlite.Connection,
+    project_id: str,
+    importance_below: float = 0.2,
+    older_than_days: int = 30,
+) -> list[dict[str, Any]]:
+    """
+    Return entities that are both low-importance AND haven't been updated recently.
+
+    Shared by the CLI and MCP prune tools so previews and deletes never diverge.
+    """
+    async with db.execute(
+        """
+        SELECT * FROM entities
+        WHERE project_id = ?
+          AND importance < ?
+          AND updated_at < datetime('now', ? || ' days')
+        ORDER BY importance ASC
+        """,
+        (project_id, importance_below, f"-{older_than_days}"),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]

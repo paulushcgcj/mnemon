@@ -1,3 +1,6 @@
+import functools
+from collections.abc import Callable, Coroutine
+from typing import Any, ParamSpec, TypeVar
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, field_validator
@@ -12,6 +15,8 @@ from .core.graph import (
     get_full_graph,
     get_observations,
     get_relations_for,
+    list_prunable_entities,
+    prune_entities,
     search_entities,
     upsert_entity,
 )
@@ -19,6 +24,7 @@ from .core.memory import (
     add_decision,
     add_session_log,
     add_task,
+    search_memory,
     update_task,
     upsert_branch_state,
     upsert_project_state,
@@ -32,16 +38,37 @@ from .core.projects import (
 )
 from .db.connection import get_db
 from .db.migrations import run_migrations
+from .logging import configure_logging, get_logger
 
 mcp = FastMCP("mnemon")
 
+logger = get_logger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def log_tool_call(  # noqa: UP047 — mypy 2.1 can't infer PEP 695 ParamSpec in this shape
+    func: Callable[P, Coroutine[Any, Any, R]],
+) -> Callable[P, Coroutine[Any, Any, R]]:
+    """Log every MCP tool invocation with its name and project scope."""
+
+    @functools.wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        logger.info("mcp_tool_call", tool=func.__name__, project_id=kwargs.get("project_id"))
+        return await func(*args, **kwargs)
+
+    return wrapper
+
 
 # ── Input models ──────────────────────────────────────────────────────────────
+
 
 class DecisionInput(BaseModel):
     title: str
     rationale: str
     branch_scoped: bool = False
+
 
 class TaskInput(BaseModel):
     title: str
@@ -49,16 +76,19 @@ class TaskInput(BaseModel):
     notes: str | None = None
     is_global: bool = False
 
-    @field_validator('status')
+    @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
         from .core.constants import validate_task_status
+
         return validate_task_status(v)
 
 
 # ── Session memory tools ──────────────────────────────────────────────────────
 
+
 @mcp.tool()
+@log_tool_call
 async def memory_read(project_id: str, branch: str) -> str:
     """
     Call at the START of every session — before anything else.
@@ -74,6 +104,7 @@ async def memory_read(project_id: str, branch: str) -> str:
 
 
 @mcp.tool()
+@log_tool_call
 async def memory_summarize(
     project_id: str,
     branch: str,
@@ -83,6 +114,8 @@ async def memory_summarize(
     decisions: list[DecisionInput] | None = None,
     tasks_done: list[str] | None = None,
     tasks_new: list[TaskInput] | None = None,
+    completed_tasks: list[str] | None = None,
+    new_tasks: list[TaskInput] | None = None,
 ) -> str:
     """
     Call at the END of every session — always, even if the user doesn't ask.
@@ -93,9 +126,17 @@ async def memory_summarize(
     decisions:     Architectural or design decisions made.
     tasks_done:    Task IDs (from memory_read) to mark done.
     tasks_new:     New tasks discovered this session.
+    completed_tasks: Alias for tasks_done (canonical tasks_done wins if both supplied).
+    new_tasks:        Alias for tasks_new (canonical tasks_new wins if both supplied).
     """
     # Input validation
     from .core.constants import validate_task_status
+
+    # Merge alias parameters; canonical names win when both are supplied
+    if tasks_done is None:
+        tasks_done = completed_tasks
+    if tasks_new is None:
+        tasks_new = new_tasks
 
     # Initialize mutable defaults
     if decisions is None:
@@ -111,23 +152,28 @@ async def memory_summarize(
         await upsert_branch_state(db, project_id, branch, current_focus, next_steps)
         await add_session_log(db, project_id, summary, branch=branch, source="ai")
         for d in decisions:
-            await add_decision(db, project_id, d.title, d.rationale,
-                               branch=branch if d.branch_scoped else None)
+            await add_decision(
+                db, project_id, d.title, d.rationale, branch=branch if d.branch_scoped else None
+            )
         for tid in tasks_done:
             await update_task(db, tid, "done")
         for t in tasks_new:
             # Validate task status (though TaskInput should already validate this)
             validated_status = validate_task_status(t.status)
-            await add_task(db, project_id, t.title,
-                           branch=None if t.is_global else branch,
-                           notes=t.notes, status=validated_status)
+            await add_task(
+                db,
+                project_id,
+                t.title,
+                branch=None if t.is_global else branch,
+                notes=t.notes,
+                status=validated_status,
+            )
     return "Memory updated."
 
 
 @mcp.tool()
-async def memory_task_update(
-    task_id: str, status: str, notes: str | None = None
-) -> str:
+@log_tool_call
+async def memory_task_update(task_id: str, status: str, notes: str | None = None) -> str:
     """
     Update a task status mid-session.
     status: 'todo' | 'in-progress' | 'done' | 'blocked'
@@ -135,6 +181,7 @@ async def memory_task_update(
     """
     # Input validation
     from .core.constants import validate_task_status
+
     status = validate_task_status(status)
 
     async with get_db() as db:
@@ -144,6 +191,32 @@ async def memory_task_update(
 
 
 @mcp.tool()
+@log_tool_call
+async def memory_task_create(
+    project_id: str,
+    title: str,
+    branch: str | None = None,
+    notes: str | None = None,
+    status: str = "todo",
+) -> str:
+    """
+    Create a new task for a project.
+    branch: Omit for a global (project-wide) task. Set for branch-specific tasks.
+    status: 'todo' | 'in-progress' | 'done' | 'blocked'
+    """
+    from .core.constants import validate_task_status
+
+    status = validate_task_status(status)
+
+    async with get_db() as db:
+        await run_migrations(db)
+        await upsert_project(db, project_id)
+        task_id = await add_task(db, project_id, title, branch=branch, notes=notes, status=status)
+    return f"Task created (id: `{task_id}`)."
+
+
+@mcp.tool()
+@log_tool_call
 async def memory_project_set_context(project_id: str, context: str) -> str:
     """Set or update the global context for a project (stack, conventions, overview)."""
     async with get_db() as db:
@@ -154,9 +227,14 @@ async def memory_project_set_context(project_id: str, context: str) -> str:
 
 
 @mcp.tool()
+@log_tool_call
 async def memory_log_commit(
-    project_id: str, branch: str, sha: str, message: str,
-    author: str = "", files: list[str] | None = None,
+    project_id: str,
+    branch: str,
+    sha: str,
+    message: str,
+    author: str = "",
+    files: list[str] | None = None,
 ) -> str:
     """Log a git commit to session history. Called by the git hook, not the AI."""
 
@@ -171,12 +249,12 @@ async def memory_log_commit(
             + (f" ({len(files)} files)" if files else "")
             + (f" by {author}" if author else "")
         )
-        await add_session_log(db, project_id, summary,
-                              branch=branch, source="git-commit", sha=sha)
+        await add_session_log(db, project_id, summary, branch=branch, source="git-commit", sha=sha)
     return f"Commit {sha[:8]} logged."
 
 
 @mcp.tool()
+@log_tool_call
 async def memory_project_list(parent_id: str | None = None) -> str:
     """List all known projects, optionally filtered by parent."""
     async with get_db() as db:
@@ -191,6 +269,7 @@ async def memory_project_list(parent_id: str | None = None) -> str:
 
 
 @mcp.tool()
+@log_tool_call
 async def project_set_parent(
     project_id: str,
     parent_id: str | None = None,
@@ -214,6 +293,7 @@ async def project_set_parent(
 
 
 @mcp.tool()
+@log_tool_call
 async def project_list_children(
     project_id: str,
     recursive: bool = False,
@@ -233,6 +313,7 @@ async def project_list_children(
 
 
 @mcp.tool()
+@log_tool_call
 async def project_list_tree(
     project_id: str | None = None,
 ) -> str:
@@ -247,8 +328,8 @@ async def project_list_tree(
         await run_migrations(db)
         tree = await get_project_tree(db, project_id)
 
-        def format_tree(nodes, indent=0):
-            lines = []
+        def format_tree(nodes: list[dict[str, Any]], indent: int = 0) -> list[str]:
+            lines: list[str] = []
             for node in nodes:
                 prefix = "  " * indent
                 lines.append(f"{prefix}- {node['id']}")
@@ -264,7 +345,9 @@ async def project_list_tree(
 
 # ── Knowledge graph tools ─────────────────────────────────────────────────────
 
+
 @mcp.tool()
+@log_tool_call
 async def graph_entity_upsert(
     project_id: str,
     name: str,
@@ -288,6 +371,7 @@ async def graph_entity_upsert(
 
     # Input validation
     from .core.constants import validate_entity_type, validate_importance
+
     entity_type = validate_entity_type(entity_type)
     importance = validate_importance(importance)
 
@@ -302,6 +386,7 @@ async def graph_entity_upsert(
 
 
 @mcp.tool()
+@log_tool_call
 async def graph_observe(
     project_id: str,
     entity_name: str,
@@ -321,6 +406,7 @@ async def graph_observe(
 
 
 @mcp.tool()
+@log_tool_call
 async def graph_relate(
     project_id: str,
     from_entity: str,
@@ -336,7 +422,7 @@ async def graph_relate(
     async with get_db() as db:
         await run_migrations(db)
         from_e = await get_entity_by_name(db, project_id, from_entity)
-        to_e   = await get_entity_by_name(db, project_id, to_entity)
+        to_e = await get_entity_by_name(db, project_id, to_entity)
         if not from_e:
             return f"Entity '{from_entity}' not found."
         if not to_e:
@@ -346,6 +432,7 @@ async def graph_relate(
 
 
 @mcp.tool()
+@log_tool_call
 async def graph_search(
     project_id: str,
     query: str,
@@ -365,9 +452,11 @@ async def graph_search(
 
         lines = [f"Search results for '{query}':", ""]
         for e in entities:
-            obs  = await get_observations(db, e["id"])
+            obs = await get_observations(db, e["id"])
             rels = await get_relations_for(db, e["id"])
-            lines.append(f"**{e['name']}** [{e['entity_type']}] (importance: {e['importance']:.1f})")
+            lines.append(
+                f"**{e['name']}** [{e['entity_type']}] (importance: {e['importance']:.1f})"
+            )
             for o in obs:
                 lines.append(f"  - {o['content']}")
             for r in [x for x in rels if x["direction"] == "out"]:
@@ -377,6 +466,59 @@ async def graph_search(
 
 
 @mcp.tool()
+@log_tool_call
+async def memory_search(
+    project_id: str,
+    query: str,
+    branch: str | None = None,
+    limit: int = 10,
+) -> str:
+    """
+    Search across all memory categories: entities, decisions, session log, tasks.
+    Useful when you want to find what Mnemon knows about a topic.
+    """
+    async with get_db() as db:
+        await run_migrations(db)
+        results = await search_memory(db, project_id, query, branch=branch, limit=limit)
+        return _format_search_results(query, results)
+
+
+def _format_search_results(query: str, results: dict[str, list[dict[str, Any]]]) -> str:
+    """Format cross-category memory search results into a compact text block."""
+    lines = [f"Search results for '{query}':", ""]
+    for category, label in (
+        ("entities", "Entities"),
+        ("decisions", "Decisions"),
+        ("sessions", "Sessions"),
+        ("tasks", "Tasks"),
+    ):
+        items = results.get(category, [])
+        if not items:
+            continue
+        lines.append(f"{label}:")
+        for item in items:
+            lines.append(f"  - {_format_search_item(category, item)}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _format_search_item(category: str, item: dict[str, Any]) -> str:
+    """Format a single search result row for display."""
+    if category == "entities":
+        return f"**{item['name']}** [{item['entity_type']}] (importance: {item['importance']:.1f})"
+    if category == "decisions":
+        rationale = item.get("rationale")
+        return f"**{item['title']}**" + (f" — {rationale}" if rationale else "")
+    if category == "sessions":
+        date = item.get("created_at", "")[:10] if item.get("created_at") else ""
+        return f"{date}: {item['summary']}".strip()
+    if category == "tasks":
+        return f"[{item['status']}] `{item['id']}` {item['title']}"
+    return str(item)
+
+
+@mcp.tool()
+@log_tool_call
 async def graph_read(
     project_id: str,
     branch: str | None = None,
@@ -389,12 +531,13 @@ async def graph_read(
     """
     async with get_db() as db:
         await run_migrations(db)
-        entities = await get_full_graph(db, project_id, branch=branch,
-                                        importance_min=importance_min, limit=100)
+        entities = await get_full_graph(
+            db, project_id, branch=branch, importance_min=importance_min, limit=100
+        )
         if not entities:
             return "No entities in graph yet."
 
-        by_type: dict[str, list] = {}
+        by_type: dict[str, list[dict[str, Any]]] = {}
         for e in entities:
             by_type.setdefault(e["entity_type"], []).append(e)
 
@@ -412,6 +555,7 @@ async def graph_read(
 
 
 @mcp.tool()
+@log_tool_call
 async def graph_forget(
     project_id: str,
     entity_name: str,
@@ -431,7 +575,40 @@ async def graph_forget(
         return f"Entity '{entity_name}' deleted." if ok else f"Entity '{entity_name}' not found."
 
 
+@mcp.tool()
+@log_tool_call
+async def graph_prune(
+    project_id: str,
+    importance_below: float = 0.2,
+    older_than_days: int = 30,
+    dry_run: bool = False,
+) -> str:
+    """
+    Remove stale low-importance entities to keep context focused.
+    Prunes entities that are BOTH below importance_below AND untouched for older_than_days.
+    dry_run: Preview candidates without deleting.
+    """
+    async with get_db() as db:
+        await run_migrations(db)
+        candidates = await list_prunable_entities(db, project_id, importance_below, older_than_days)
+        if not candidates:
+            return "Nothing to prune."
+        if dry_run:
+            lines = [
+                f"Would prune {len(candidates)} stale entit{'y' if len(candidates) == 1 else 'ies'}:"
+            ]
+            for e in candidates:
+                lines.append(
+                    f"- {e['name']} [{e['entity_type']}] (importance: {e['importance']:.2f})"
+                )
+            return "\n".join(lines)
+        count = await prune_entities(db, project_id, importance_below, older_than_days)
+        return f"Pruned {count} stale entit{'y' if count == 1 else 'ies'}."
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+
 def main() -> None:
+    configure_logging()
     mcp.run()

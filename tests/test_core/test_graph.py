@@ -12,6 +12,8 @@ from mnemon.core.graph import (
     get_observations,
     get_relations_for,
     list_entities,
+    list_prunable_entities,
+    prune_entities,
     search_entities,
     upsert_entity,
 )
@@ -92,6 +94,7 @@ class TestEntities:
 
         # Create both projects first
         from mnemon.core.projects import upsert_project
+
         await upsert_project(db, other_project)
 
         await upsert_entity(db, project_id, "Component", "component", 0.8)
@@ -236,3 +239,50 @@ class TestSearch:
         """Test search with no matches."""
         results = await search_entities(db, project_id, "NonExistent")
         assert results == []
+
+
+@pytest.mark.asyncio
+class TestPrune:
+    """Tests for pruning stale low-importance entities."""
+
+    async def _backdate(self, db, name: str, days: int = 60) -> None:
+        """Backdate an entity's updated_at so it counts as stale."""
+        await db.execute(
+            "UPDATE entities SET updated_at = datetime('now', ? || ' days') WHERE name = ?",
+            (f"-{days}", name),
+        )
+        await db.commit()
+
+    async def test_list_prunable_entities_filters_by_importance_and_age(self, db, project_id):
+        """Test that only low-importance AND old entities are prunable."""
+        await upsert_entity(db, project_id, "OldLow", "component", 0.1)
+        await upsert_entity(db, project_id, "OldHigh", "component", 0.9)
+        await upsert_entity(db, project_id, "NewLow", "component", 0.1)
+        await self._backdate(db, "OldLow")
+        await self._backdate(db, "OldHigh")
+
+        candidates = await list_prunable_entities(
+            db, project_id, importance_below=0.2, older_than_days=30
+        )
+        names = {c["name"] for c in candidates}
+        assert names == {"OldLow"}
+
+    async def test_prune_deletes_only_matching_entities(self, db, project_id):
+        """Test that prune_entities deletes stale entities and leaves others."""
+        await upsert_entity(db, project_id, "Stale", "component", 0.1)
+        await upsert_entity(db, project_id, "Keep", "component", 0.9)
+        await self._backdate(db, "Stale")
+        await self._backdate(db, "Keep")
+
+        count = await prune_entities(db, project_id, importance_below=0.2, older_than_days=30)
+        assert count == 1
+        assert await get_entity_by_name(db, project_id, "Stale") is None
+        assert await get_entity_by_name(db, project_id, "Keep") is not None
+
+    async def test_above_threshold_never_pruned(self, db, project_id):
+        """Test that entities above the importance threshold survive pruning."""
+        await upsert_entity(db, project_id, "Core", "system", 0.7)
+        await self._backdate(db, "Core")
+
+        count = await prune_entities(db, project_id, importance_below=0.2, older_than_days=30)
+        assert count == 0

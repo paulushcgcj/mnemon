@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import aiosqlite
 
 from .constants import (
@@ -5,20 +7,18 @@ from .constants import (
     DEFAULT_TASK_STATUS,
     validate_task_status,
 )
+from .graph import search_entities
 
 # ── Project state ─────────────────────────────────────────────────────────────
 
-async def get_project_state(db: aiosqlite.Connection, project_id: str) -> dict | None:
-    async with db.execute(
-        "SELECT * FROM project_state WHERE project_id = ?", (project_id,)
-    ) as cur:
+
+async def get_project_state(db: aiosqlite.Connection, project_id: str) -> dict[str, Any] | None:
+    async with db.execute("SELECT * FROM project_state WHERE project_id = ?", (project_id,)) as cur:
         row = await cur.fetchone()
         return dict(row) if row else None
 
 
-async def upsert_project_state(
-    db: aiosqlite.Connection, project_id: str, context: str
-) -> None:
+async def upsert_project_state(db: aiosqlite.Connection, project_id: str, context: str) -> None:
     await db.execute(
         """
         INSERT INTO project_state (project_id, context, updated_at)
@@ -33,9 +33,10 @@ async def upsert_project_state(
 
 # ── Branch state ──────────────────────────────────────────────────────────────
 
+
 async def get_branch_state(
     db: aiosqlite.Connection, project_id: str, branch: str
-) -> dict | None:
+) -> dict[str, Any] | None:
     async with db.execute(
         "SELECT * FROM branch_state WHERE project_id = ? AND branch = ?",
         (project_id, branch),
@@ -67,6 +68,7 @@ async def upsert_branch_state(
 
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
+
 async def add_decision(
     db: aiosqlite.Connection,
     project_id: str,
@@ -83,7 +85,7 @@ async def add_decision(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]  # type: ignore[index,no-any-return]
+        return cast(str, row[0]) if row is not None else ""
 
 
 async def get_decisions(
@@ -91,7 +93,7 @@ async def get_decisions(
     project_id: str,
     branch: str | None = None,
     limit: int = 10,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     async with db.execute(
         """
         SELECT * FROM decisions
@@ -104,6 +106,7 @@ async def get_decisions(
 
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
+
 
 async def add_task(
     db: aiosqlite.Connection,
@@ -123,7 +126,7 @@ async def add_task(
     ) as cur:
         row = await cur.fetchone()
         await db.commit()
-        return row[0]  # type: ignore[index,no-any-return]
+        return cast(str, row[0]) if row is not None else ""
 
 
 async def update_task(
@@ -151,7 +154,7 @@ async def get_tasks(
     db: aiosqlite.Connection,
     project_id: str,
     branch: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     async with db.execute(
         """
         SELECT * FROM tasks
@@ -170,6 +173,7 @@ async def get_tasks(
 
 
 # ── Session log ───────────────────────────────────────────────────────────────
+
 
 async def add_session_log(
     db: aiosqlite.Connection,
@@ -191,7 +195,7 @@ async def get_recent_sessions(
     project_id: str,
     branch: str | None = None,
     limit: int = 5,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     async with db.execute(
         """
         SELECT * FROM session_log
@@ -201,3 +205,69 @@ async def get_recent_sessions(
         (project_id, branch, limit),
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
+
+
+# ── Cross-category search ─────────────────────────────────────────────────────
+
+
+async def search_memory(
+    db: aiosqlite.Connection,
+    project_id: str,
+    query: str,
+    branch: str | None = None,
+    limit: int = 10,
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Search across all memory categories: entities, decisions, session log, tasks.
+
+    Each category is branch-filtered (global rows are always included) and
+    capped at ``limit`` results. Returns per-category lists keyed by
+    ``entities``, ``decisions``, ``sessions``, and ``tasks``.
+    """
+    like = f"%{query}%"
+    results: dict[str, list[dict[str, Any]]] = {
+        "entities": [],
+        "decisions": [],
+        "sessions": [],
+        "tasks": [],
+    }
+
+    results["entities"] = await search_entities(db, project_id, query, limit=limit)
+
+    async with db.execute(
+        """
+        SELECT * FROM decisions
+        WHERE project_id = ?
+          AND (branch IS NULL OR ? IS NULL OR branch = ?)
+          AND (title LIKE ? OR rationale LIKE ?)
+        ORDER BY created_at DESC LIMIT ?
+        """,
+        (project_id, branch, branch, like, like, limit),
+    ) as cur:
+        results["decisions"] = [dict(r) for r in await cur.fetchall()]
+
+    async with db.execute(
+        """
+        SELECT * FROM session_log
+        WHERE project_id = ?
+          AND (branch IS NULL OR ? IS NULL OR branch = ?)
+          AND summary LIKE ?
+        ORDER BY created_at DESC LIMIT ?
+        """,
+        (project_id, branch, branch, like, limit),
+    ) as cur:
+        results["sessions"] = [dict(r) for r in await cur.fetchall()]
+
+    async with db.execute(
+        """
+        SELECT * FROM tasks
+        WHERE project_id = ?
+          AND (branch IS NULL OR ? IS NULL OR branch = ?)
+          AND (title LIKE ? OR notes LIKE ?)
+        ORDER BY updated_at DESC LIMIT ?
+        """,
+        (project_id, branch, branch, like, like, limit),
+    ) as cur:
+        results["tasks"] = [dict(r) for r in await cur.fetchall()]
+
+    return results

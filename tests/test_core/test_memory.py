@@ -1,8 +1,8 @@
 """Tests for memory operations."""
 
-
 import pytest
 
+from mnemon.core.graph import upsert_entity
 from mnemon.core.memory import (
     add_decision,
     add_session_log,
@@ -12,6 +12,7 @@ from mnemon.core.memory import (
     get_project_state,
     get_recent_sessions,
     get_tasks,
+    search_memory,
     update_task,
     upsert_branch_state,
     upsert_project_state,
@@ -200,3 +201,47 @@ class TestSessionLog:
 
         sessions = await get_recent_sessions(db, project_id, limit=5)
         assert len(sessions) == 5
+
+
+@pytest.mark.asyncio
+class TestSearchMemory:
+    """Tests for cross-category memory search."""
+
+    async def test_search_returns_matches_across_categories(self, db, project_id, branch):
+        """Test that search_memory returns matches from all categories."""
+        await upsert_entity(db, project_id, "AuthService", "component", 0.8)
+        await add_decision(db, project_id, "Use auth tokens", "JWT auth for API", branch=branch)
+        await add_task(db, project_id, "Add auth middleware", branch=branch)
+        await add_session_log(db, project_id, "Worked on auth flows", branch=branch)
+
+        results = await search_memory(db, project_id, "auth", branch=branch)
+
+        assert any(e["name"] == "AuthService" for e in results["entities"])
+        assert any(d["title"] == "Use auth tokens" for d in results["decisions"])
+        assert any(t["title"] == "Add auth middleware" for t in results["tasks"])
+        assert any("auth flows" in s["summary"] for s in results["sessions"])
+
+    async def test_search_no_matches(self, db, project_id):
+        """Test that search with no matches returns empty lists."""
+        results = await search_memory(db, project_id, "nonexistent")
+        assert results == {"entities": [], "decisions": [], "sessions": [], "tasks": []}
+
+    async def test_search_branch_filter(self, db, project_id, branch):
+        """Test that branch filter includes global rows and excludes other branches."""
+        await add_decision(db, project_id, "Global decision", "Global", branch=None)
+        await add_decision(db, project_id, "Branch decision", "Branch", branch=branch)
+        await add_decision(db, project_id, "Other decision", "Other", branch="other-branch")
+
+        results = await search_memory(db, project_id, "decision", branch=branch)
+        titles = {d["title"] for d in results["decisions"]}
+        assert "Global decision" in titles
+        assert "Branch decision" in titles
+        assert "Other decision" not in titles
+
+    async def test_search_limit(self, db, project_id):
+        """Test that search respects the per-category limit."""
+        for i in range(15):
+            await add_task(db, project_id, f"Task {i}")
+
+        results = await search_memory(db, project_id, "Task", limit=5)
+        assert len(results["tasks"]) == 5
