@@ -3,6 +3,7 @@
 import pytest
 from click.testing import CliRunner
 
+from mnemon import update
 from mnemon.cli import cli
 
 
@@ -21,7 +22,58 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Mnemon" in result.output or "Usage" in result.output
 
-    # Note: --version option is not implemented in the CLI, skipping this test
+    def test_version_option(self, runner):
+        """The CLI exposes the installed package version."""
+        result = runner.invoke(cli, ["--version"])
+
+        assert result.exit_code == 0
+        assert result.output == "mnemon, version 0.1.0\n"
+
+    def test_help_includes_version_option(self, runner):
+        """Root help documents the version option."""
+        result = runner.invoke(cli, ["--help"])
+
+        assert result.exit_code == 0
+        assert "--version" in result.output
+        assert "Version: 0.1.0" in result.output
+
+    def test_normal_command_reports_available_update(self, runner, monkeypatch):
+        """Normal commands report an available update on stderr."""
+        status = update.UpdateStatus("1.0.0", "1.1.0", True)
+        monkeypatch.setattr("mnemon.cli.check_for_update", lambda: status)
+
+        result = runner.invoke(cli, ["projects"])
+
+        assert result.exit_code == 0
+        assert "Update available: 1.0.0 → 1.1.0" in result.stderr
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            update.UpdateStatus("1.0.0", None, False, error="offline"),
+            update.UpdateStatus("1.0.0", None, False, skipped=True),
+        ],
+        ids=["offline", "opt-out"],
+    )
+    def test_normal_command_silences_unavailable_update(self, runner, monkeypatch, status):
+        """Offline and opt-out checks do not add noise to normal commands."""
+        monkeypatch.setattr("mnemon.cli.check_for_update", lambda: status)
+
+        result = runner.invoke(cli, ["projects"])
+
+        assert result.exit_code == 0
+        assert result.stderr == ""
+
+    def test_help_does_not_trigger_update_notification(self, runner, monkeypatch):
+        """Help output does not perform an update check."""
+        monkeypatch.setattr(
+            "mnemon.cli.check_for_update",
+            lambda: pytest.fail("root notification should be skipped"),
+        )
+
+        result = runner.invoke(cli, ["--help"])
+
+        assert result.exit_code == 0
 
     def test_serve_command_help(self, runner):
         """Test that serve command help works."""
