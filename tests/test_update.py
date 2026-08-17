@@ -29,6 +29,25 @@ def test_check_for_update_uses_fresh_cache(monkeypatch: pytest.MonkeyPatch, tmp_
     assert update.check_for_update(now=now) == cached
 
 
+def test_check_for_update_ignores_cache_from_previous_installation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A cache from another installed version is refreshed."""
+    cache = tmp_path / "update.json"
+    now = datetime(2026, 8, 17, tzinfo=UTC)
+    cached = update.UpdateStatus("1.0.0", "1.1.0", True, now.isoformat())
+    cache.write_text(update.json.dumps(update.asdict(cached)), encoding="utf-8")
+    monkeypatch.setenv(update.UPDATE_CACHE_PATH_ENV, str(cache))
+    monkeypatch.setattr(update, "installed_version", lambda: "1.1.0")
+    monkeypatch.setattr(update, "fetch_latest_version", lambda timeout: "1.2.0")
+
+    refreshed = update.check_for_update(now=now)
+
+    assert refreshed.installed_version == "1.1.0"
+    assert refreshed.latest_version == "1.2.0"
+    assert refreshed.update_available is True
+
+
 def test_check_for_update_reports_offline_errors(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
