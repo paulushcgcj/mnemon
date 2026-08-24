@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="120" viewBox="0 0 1200 120"
+     role="img" aria-labelledby="s2-title s2-desc">
+  <title id="s2-title">Chapter 02</title>
+  <desc id="s2-desc">Chapter mark for the how-it-works section.</desc>
+  <defs>
+    <style>.mono { font-family: ui-monospace, 'SFMono-Regular', 'Menlo', monospace; }</style>
+  </defs>
+  <rect width="1200" height="120" rx="16" fill="#101418"/>
+  <text class="mono" x="64" y="78" font-size="42" font-weight="600" letter-spacing="1" fill="#F0B429">02</text>
+  <line x1="160" y1="62" x2="1118" y2="62" stroke="#2A333D" stroke-width="1.5"/>
+  <circle cx="1130" cy="62" r="5" fill="none" stroke="#F0B429" stroke-width="1.5"/>
+</svg>

@@ -1,66 +1,36 @@
-# Mnemon
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/hero.svg"
+       width="100%"
+       alt="Mnemon — local-first memory for AI coding agents. A stylized session-start context block lists the project, branch, focus, decision, task, and graph knowledge an agent receives when a session begins.">
+</p>
 
-[![PyPI version](https://img.shields.io/pypi/v/mnemonn.svg)](https://pypi.org/project/mnemonn/)
-[![Python versions](https://img.shields.io/pypi/pyversions/mnemonn.svg)](https://pypi.org/project/mnemonn/)
-[![CI](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml/badge.svg)](https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/paulushcgcj/mnemon.svg)](LICENSE)
+<p align="center">
+  <a href="https://pypi.org/project/mnemonn/"><img src="https://img.shields.io/pypi/v/mnemonn.svg" alt="PyPI version"></a>
+  &nbsp;
+  <a href="https://pypi.org/project/mnemonn/"><img src="https://img.shields.io/pypi/pyversions/mnemonn.svg" alt="Python versions"></a>
+  &nbsp;
+  <a href="https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml"><img src="https://github.com/paulushcgcj/mnemon/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  &nbsp;
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/paulushcgcj/mnemon.svg" alt="MIT License"></a>
+</p>
 
-Persistent project memory and a scoped knowledge graph for AI coding agents.
+**Persistent project memory and a scoped knowledge graph for AI coding agents.**
 
-Mnemon helps an AI coding agent remember what matters between sessions: what the project is, what branch is being worked on, what decisions were made, what tasks are still open, and which components or concepts are important in the codebase.
+AI coding sessions lose the thread. Every new session re-asks for the branch goal, the plan, the constraints, the decision history, the half-finished task. Mnemon fixes this with a small, local-first memory layer: the agent reads a context block at session start and writes back what it learned, so the next session starts already oriented.
 
-It is intentionally small and local-first. There is no hosted service to configure and no vector database to operate. Mnemon runs as an MCP server, stores memory in SQLite, and gives compatible agents a clean context block at the start of every session.
+There is no hosted service and no vector database. Mnemon runs as an MCP server, stores everything in one SQLite file, and scopes memory by project and branch — the way software work actually happens.
 
-## Why Mnemon
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/section-get-started.svg"
+       width="100%" alt="Chapter 01">
+</p>
 
-AI coding sessions often lose the thread. A new session may need the same explanations again: the branch goal, the plan, the constraints, the decision history, the half-finished task, the component that should not be touched casually.
+## Get started
 
-Mnemon is built around continuity rather than chat history search.
-
-- **Session memory** keeps the current project state, per-branch focus, decisions, tasks, and recent session history.
-- **Knowledge graph memory** stores entities, observations, and typed relations for components, concepts, files, people, and systems.
-- **Git-aware setup** derives the project id from the repository remote, so each repo gets a stable memory namespace.
-- **Branch-aware state** lets the same repository have different active plans on different branches.
-- **Local storage** keeps memory in `~/.agent-memory/mnemon.db`.
-- **MCP tools** let agents read and update memory as part of their normal workflow.
-
-The result is a compact memory layer that helps an agent start a session already oriented instead of asking you to rebuild the map by hand.
-
-## How It Works
-
-Mnemon keeps two complementary layers.
-
-### Session Memory
-
-Session memory answers: "Where are we right now?"
-
-It stores:
-
-- project-wide context, such as stack, conventions, and architecture notes
-- branch-specific focus and next steps
-- decisions, either global or branch-scoped
-- tasks with `todo`, `in-progress`, `blocked`, or `done` status
-- recent session summaries
-- git commit entries from optional hooks
-
-Agents read this through `memory_read` at the start of a session and update it through `memory_summarize` at the end.
-
-### Knowledge Graph
-
-The graph answers: "What do we know about the important things in this project?"
-
-It stores:
-
-- **entities** such as components, concepts, files, people, systems, or custom types
-- **observations** as factual notes attached to entities
-- **relations** such as `calls`, `implements`, `depends_on`, `owns`, `uses`, or custom labels
-- **importance scores** from `0.0` to `1.0`
-
-Important graph entities are automatically included in the session-start context, so architectural knowledge becomes part of the agent's working memory without a separate search step.
-
-## Installation
+Install the CLI, initialize your repository, and connect the MCP server.
 
 **Mac / Linux**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.sh | bash
 ```
@@ -77,52 +47,25 @@ irm https://raw.githubusercontent.com/paulushcgcj/mnemon/main/install.ps1 | iex
 uv tool install mnemonn
 ```
 
-> **macOS note:** If you see a security warning on first run, clear the quarantine flag once: `xattr -d com.apple.quarantine /usr/local/bin/mnemon`
+> **macOS note:** if you see a security warning on first run, clear the quarantine flag once:
+> `xattr -d com.apple.quarantine /usr/local/bin/mnemon`
 
-### One-off Usage
+**One-off usage** — run without installing:
 
 ```bash
-# Run a command without permanent installation
 uvx mnemonn read --help
 ```
 
-### From Source (Development)
+**From source (development):**
 
 ```bash
-# Clone the repository
 git clone https://github.com/paulushcgcj/mnemon.git
 cd mnemon
-
-# Install in development mode
 uv sync
 uv tool install -e .
 ```
 
-During development, you can also run it directly with:
-
-```bash
-uv run mnemon --help
-```
-
-## Quick Start
-
-Install Mnemon, then set up a repository:
-
-```bash
-uv tool install /path/to/mnemon
-cd /path/to/your/repo
-mnemon init
-```
-
-`mnemon init` creates:
-
-```text
-.github/copilot-instructions.md
-```
-
-The file tells the agent to call Mnemon at session start and session end.
-
-## MCP Configuration
+### Connect your agent
 
 Configure your MCP client to run Mnemon over stdio:
 
@@ -133,139 +76,70 @@ Configure your MCP client to run Mnemon over stdio:
 }
 ```
 
-After that, compatible agents can call Mnemon's tools directly.
-
-## CLI
-
-The root command displays the installed version in `--help` and supports the
-conventional `--version` option:
+### Initialize a repository
 
 ```bash
-mnemon --version
-```
-
-Normal commands perform a cached daily update check. If a newer release is
-available, Mnemon prints a notice to stderr and continues without changing the
-command's normal output. Network failures are ignored, and checks can be
-disabled with `MNEMON_NO_UPDATE_CHECK=1`. Run `mnemon update` to inspect or
-apply an update explicitly.
-
-```bash
-mnemon serve
-```
-
-Start the MCP server over stdio.
-
-```bash
+cd /path/to/your/repo
 mnemon init
-mnemon init --force
 ```
 
-Generate `.github/copilot-instructions.md` for the current repository. Mnemon detects the project id from `git remote get-url origin`, using the `owner/repo` slug.
+This detects the project id from `git remote get-url origin` and generates `.github/copilot-instructions.md`, which tells the agent to call Mnemon at session start and session end. Use `--force` to overwrite an existing file.
 
-```bash
-mnemon read
-mnemon read --project owner/repo --branch main
-```
+### Your first session
 
-Print the full context block that an agent receives at session start.
+1. **Start** — the agent calls `memory_read(project_id, branch)` and receives project context, branch focus, decisions, tasks, graph entities, and recent history.
+2. **Work** — the agent updates task status, records decisions, and stores components and relations in the knowledge graph as they come up.
+3. **Close** — the agent calls `memory_summarize(...)` with the session summary, current focus, and next steps.
 
-```bash
-mnemon graph
-mnemon graph --min 0.6
-mnemon graph --type component
-```
+The next session starts with all of it already available.
 
-Inspect the project knowledge graph.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/section-how-it-works.svg"
+       width="100%" alt="Chapter 02">
+</p>
 
-```bash
-mnemon prune
-mnemon prune --below 0.3 --days 60
-mnemon prune --dry-run
-```
+## How it works
 
-Remove stale, low-importance entities from the graph.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/workflow.svg"
+       width="100%"
+       alt="System map: the AI coding agent calls the Mnemon MCP server with memory_read, receives a context block, and closes the session with memory_summarize, while the server reads and writes one local SQLite database.">
+</p>
 
-```bash
-mnemon projects
-```
+Mnemon keeps two complementary memory layers behind one MCP server.
 
-List projects known to the local memory store.
+### Session memory
 
-## MCP Tools
+Answers *"where are we right now?"* — per project and per branch:
 
-Mnemon exposes two groups of tools.
+- project-wide context: stack, conventions, architecture notes
+- branch-specific focus and next steps
+- decisions, global or branch-scoped
+- tasks with `todo`, `in-progress`, `blocked`, or `done` status
+- recent session summaries and commit entries logged through `memory_log_commit`
 
-### Session Tools
+### Knowledge graph
 
-- `memory_read(project_id, branch)` returns the full session-start context block.
-- `memory_summarize(...)` stores the end-of-session summary, current focus, next steps, decisions, completed tasks, and new tasks.
-- `memory_task_update(task_id, status, notes)` updates a task during a session.
-- `memory_project_set_context(project_id, context)` sets the global project context.
-- `memory_log_commit(...)` logs a commit into session history.
-- `memory_project_list(parent_id)` lists known projects.
+Answers *"what do we know about the important things here?"*:
 
-### Graph Tools
+- **entities** — components, concepts, files, people, systems, or custom types
+- **observations** — factual notes attached to entities
+- **relations** — typed connections such as `calls`, `implements`, `depends_on`, `owns`
+- **importance scores** from `0.0` to `1.0`
 
-- `graph_entity_upsert(...)` creates or updates an entity and optionally adds observations.
-- `graph_observe(project_id, entity_name, observation)` adds a fact to an existing entity.
-- `graph_relate(project_id, from_entity, relation, to_entity)` connects two entities.
-- `graph_search(project_id, query, entity_type, limit)` searches by entity name or observation content.
-- `graph_read(project_id, branch, importance_min)` reads the graph.
-- `graph_forget(project_id, entity_name, observation_id)` deletes an entity or a single observation.
+High-importance entities are included automatically in the session-start context, so architectural knowledge becomes working memory without a separate search step.
 
-## Data Model
-
-Mnemon stores data in:
-
-```text
-~/.agent-memory/mnemon.db
-```
-
-The SQLite schema has nine tables:
-
-- `projects`
-- `project_state`
-- `branch_state`
-- `decisions`
-- `tasks`
-- `session_log`
-- `entities`
-- `observations`
-- `relations`
-
-The project id is normally inferred from the git remote URL. For example:
-
-```text
-git@github.com:owner/repo.git
-https://github.com/owner/repo.git
-```
-
-Both resolve to:
-
-```text
-owner/repo
-```
-
-## Example Flow
-
-At the beginning of a session, the agent calls:
+### A session in practice
 
 ```text
 memory_read(project_id="owner/repo", branch="feature/imports")
 ```
 
-Mnemon returns a context block containing project context, decisions, graph entities, branch focus, tasks, and recent history.
-
-During the session, the agent can update task status:
+Returns the full context block. During the session:
 
 ```text
 memory_task_update(task_id="a1b2c3d4", status="in-progress")
-```
 
-When the user says "remember that the ImportService owns CSV validation", the agent can store graph knowledge:
-
-```text
 graph_entity_upsert(
   project_id="owner/repo",
   name="ImportService",
@@ -275,7 +149,7 @@ graph_entity_upsert(
 )
 ```
 
-At the end of the session, the agent calls:
+At the end:
 
 ```text
 memory_summarize(
@@ -287,66 +161,118 @@ memory_summarize(
 )
 ```
 
-The next session starts with that context already available.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/section-tools.svg"
+       width="100%" alt="Chapter 03">
+</p>
 
-## Design Principles
+## Tools & commands
 
-- **Continuity over retrieval tricks.** Mnemon focuses on the information an agent needs to resume work, not on building a general-purpose RAG stack.
-- **Project and branch scope by default.** Memory follows the way software work actually happens.
-- **Append important history, overwrite current state.** Session logs and observations accumulate; branch focus stays current.
-- **Local and inspectable.** Memory is SQLite, and the CLI can read the context and graph directly.
-- **Small surface area.** The system is meant to be easy to install, understand, and remove.
+### MCP tools — session
+
+| Tool | Purpose |
+|---|---|
+| `memory_read` | Full session-start context block for a project and branch |
+| `memory_summarize` | Store end-of-session summary, focus, next steps, decisions, tasks |
+| `memory_task_create` | Add a task during the session |
+| `memory_task_update` | Change a task's status or notes |
+| `memory_search` | Search across entities, decisions, session log, and tasks |
+| `memory_project_set_context` | Set the global project context |
+| `memory_project_list` | List known projects |
+| `memory_log_commit` | Log a commit into session history |
+
+### MCP tools — graph
+
+| Tool | Purpose |
+|---|---|
+| `graph_entity_upsert` | Create or update an entity, optionally with observations |
+| `graph_observe` | Add a fact to an existing entity |
+| `graph_relate` | Connect two entities with a typed relation |
+| `graph_search` | Search by entity name or observation content |
+| `graph_read` | Read the graph, optionally filtered by importance |
+| `graph_forget` | Delete an entity or a single observation |
+| `graph_prune` | Remove stale, low-importance entities |
+
+### CLI
+
+| Command | Purpose |
+|---|---|
+| `mnemon serve` | Start the MCP server over stdio |
+| `mnemon init` | Generate `.github/copilot-instructions.md` (`--force` to overwrite) |
+| `mnemon read` | Print the context block an agent receives (`--project`, `--branch`) |
+| `mnemon graph` | Inspect the knowledge graph (`--project`, `--min`, `--type`) |
+| `mnemon prune` | Remove stale entities (`--below`, `--days`, `--dry-run`) |
+| `mnemon projects` | List projects known to the local store |
+| `mnemon project-tree` | Show the project hierarchy |
+| `mnemon project-children` | List child projects (`--recursive`) |
+| `mnemon project-set-parent` | Attach or detach a parent project |
+| `mnemon update` | Check for a newer release (`--apply` to upgrade via uv) |
+
+Every command accepts `--format text|json` and `--out`, and `mnemon --version` prints the installed version. Commands also perform a cached daily update check: a notice goes to stderr when a newer release exists, network failures are ignored, and `MNEMON_NO_UPDATE_CHECK=1` disables it.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/section-storage.svg"
+       width="100%" alt="Chapter 04">
+</p>
+
+## Storage & data model
+
+Everything lives in one inspectable SQLite file:
+
+```text
+~/.agent-memory/mnemon.db
+```
+
+Nine tables: `projects`, `project_state`, `branch_state`, `decisions`, `tasks`, `session_log`, `entities`, `observations`, `relations`.
+
+The project id is inferred from the git remote, so each repository gets a stable namespace and each branch keeps its own focus:
+
+```text
+git@github.com:owner/repo.git  ─┐
+https://github.com/owner/repo.git ─┴─▶  owner/repo
+```
+
+Current state is overwritten; history is appended. Session logs, decisions, and observations accumulate while branch focus and task statuses stay current.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/paulushcgcj/mnemon/HEAD/assets/readme/section-development.svg"
+       width="100%" alt="Chapter 05">
+</p>
 
 ## Development
 
-Run the CLI from the repository:
+Mnemon is a Python 3.12+ package managed with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv run mnemon --help
+uv sync                  # install dependencies
+uv run mnemon --help     # run the CLI locally
+uv run mnemon serve      # start the MCP server
+uv run pytest            # run the test suite
+uv run mypy src          # strict type checking
+uv run ruff check .      # lint
 ```
 
-Start the MCP server:
-
-```bash
-uv run mnemon serve
-```
-
-Inspect the current repository memory:
-
-```bash
-uv run mnemon read
-```
-
-The package entry point is defined in `pyproject.toml`:
+The package entry point lives in `pyproject.toml`:
 
 ```toml
 [project.scripts]
 mnemon = "mnemon.cli:cli"
 ```
 
-## Recent Improvements
+## Design principles
 
-The following improvements have been completed as part of the ongoing development:
+- **Continuity over retrieval tricks.** Mnemon focuses on what an agent needs to resume work, not on building a general-purpose RAG stack.
+- **Project and branch scope by default.** Memory follows the way software work actually happens.
+- **Append history, overwrite state.** Logs and observations accumulate; current focus stays current.
+- **Local and inspectable.** Memory is SQLite, and the CLI reads the same data the server does.
+- **Small surface area.** Easy to install, understand, and remove.
 
-| Date | Change | Workstream | Impact |
-|------|--------|-----------|--------|
-| 2026-06-23 | Fixed SQL injection vulnerability in search_entities | [01-security-fixes](.temp/plan/01-security-fixes.md) | HIGH - Security |
-| 2026-06-23 | Added input validation for entity types, task statuses, importance | [02-input-validation](.temp/plan/02-input-validation.md) | HIGH - Data Quality |
-| 2026-06-23 | Extracted magic strings into constants module | [03-constants-refactor](.temp/plan/03-constants-refactor.md) | MEDIUM - Maintainability |
-| 2026-06-23 | Made database path configurable via env var and CLI | [04-configurable-db-path](.temp/plan/04-configurable-db-path.md) | MEDIUM - Testability |
-| 2026-06-23 | Improved git hooks with better error handling | [05-git-hook-improvements](.temp/plan/05-git-hook-improvements.md) | MEDIUM - Reliability |
-| 2026-06-24 | Added CLI quality improvements (contracts, format flags, error handling) | [09-cli-quality-improvements](.temp/plan/09-cli-quality-improvements.md) | HIGH - CLI Infrastructure |
+## Status & roadmap
 
-### Architecture Updates
+Mnemon is early software and usable today: install it, initialize a repository, connect an MCP client, and let the agent keep project memory as work progresses. See [CHANGELOG.md](CHANGELOG.md) for release history — v1.2.0 ships the opt-in PyPI update check and removes the old git-hook setup in favor of MCP-only commit logging.
 
-- **New Module:** `mnemon/core/constants.py` - Centralized constants and validation helpers
-- **Enhanced:** `mnemon/db/connection.py` - Now supports `MNEMON_DB_PATH` environment variable and explicit path override
-- **Improved:** `mnemon/core/git.py` - `get_commit_context()` now handles first commit gracefully
-- **Hardened:** All CLI commands now include `--db-path` option for testing
-- **New Directories:** `mnemon/contracts/` - Pydantic models for JSON output contracts, `mnemon/commands/` - Shared CLI utilities
+Next up, in rough order: export/import for portability, richer graph inspection, and client-specific setup guides.
 
-## Status
+## License
 
-Mnemon is early software. The core loop is intentionally usable now: install it, initialize a repository, connect an MCP client, and let the agent keep project memory as work progresses.
-
-The most valuable next improvements are likely around export/import, richer graph inspection, comprehensive test coverage, and more client-specific setup guides.
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="400" viewBox="0 0 1200 400"
+     role="img" aria-labelledby="flow-title flow-desc">
+  <title id="flow-title">How Mnemon works</title>
+  <desc id="flow-desc">System map: the AI coding agent talks to the Mnemon MCP server over stdio. The agent requests context with memory_read, receives a context block, works, and closes the loop with memory_summarize while the server reads and writes one local SQLite database.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .mono { font-family: ui-monospace, 'SFMono-Regular', 'Menlo', monospace; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#97A1AA" stroke-width="1.8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="400" rx="16" fill="#101418"/>
+
+  <!-- column A: the agent -->
+  <g transform="translate(72 96)">
+    <rect width="260" height="176" rx="10" fill="#1A2129" stroke="#2A333D" stroke-width="1.5"/>
+    <text class="sans" x="24" y="38" font-size="20" font-weight="600" fill="#F2EFE8">AI coding agent</text>
+    <g class="mono" font-size="14">
+      <rect x="24" y="58" width="81" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="64" y="77" text-anchor="middle" fill="#97A1AA">Copilot</text>
+      <rect x="117" y="58" width="119" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="176" y="77" text-anchor="middle" fill="#97A1AA">Claude Code</text>
+      <rect x="24" y="94" width="89" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="68" y="113" text-anchor="middle" fill="#97A1AA">opencode</text>
+      <rect x="125" y="94" width="72" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="161" y="113" text-anchor="middle" fill="#97A1AA">Cursor</text>
+    </g>
+    <line x1="24" y1="144" x2="236" y2="144" stroke="#2A333D"/>
+    <text class="mono" x="24" y="162" font-size="13" fill="#6B7681">works with any MCP client</text>
+  </g>
+
+  <!-- channel A &lt;-&gt; B -->
+  <g class="mono" font-size="13">
+    <circle cx="401" cy="108" r="12" fill="#101418" stroke="#F0B429" stroke-width="1.5"/>
+    <text x="401" y="112.5" text-anchor="middle" fill="#F0B429">1</text>
+    <line x1="344" y1="132" x2="458" y2="132" stroke="#97A1AA" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="401" y="154" text-anchor="middle" fill="#F2EFE8">memory_read</text>
+
+    <text x="401" y="184" text-anchor="middle" fill="#F2EFE8">context block</text>
+    <line x1="458" y1="200" x2="344" y2="200" stroke="#97A1AA" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <circle cx="401" cy="216" r="12" fill="#101418" stroke="#F0B429" stroke-width="1.5"/>
+    <text x="401" y="220.5" text-anchor="middle" fill="#F0B429">2</text>
+
+    <circle cx="401" cy="250" r="12" fill="#101418" stroke="#F0B429" stroke-width="1.5"/>
+    <text x="401" y="254.5" text-anchor="middle" fill="#F0B429">4</text>
+    <line x1="344" y1="266" x2="458" y2="266" stroke="#97A1AA" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="401" y="290" text-anchor="middle" fill="#F2EFE8">memory_summarize</text>
+  </g>
+
+  <!-- column B: mnemon serve -->
+  <g transform="translate(470 96)">
+    <rect width="260" height="176" rx="10" fill="#1A2129" stroke="#F0B429" stroke-width="1.5"/>
+    <text class="sans" x="24" y="38" font-size="19" font-weight="600" fill="#F2EFE8">Mnemon MCP server</text>
+    <g class="mono" font-size="14">
+      <rect x="24" y="58" width="212" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="36" y="77" fill="#97A1AA">session tools</text>
+      <text x="224" y="77" text-anchor="end" fill="#6B7681">&#215; 8</text>
+      <rect x="24" y="94" width="212" height="28" rx="6" fill="#101418" stroke="#2A333D"/>
+      <text x="36" y="113" fill="#97A1AA">graph tools</text>
+      <text x="224" y="113" text-anchor="end" fill="#6B7681">&#215; 7</text>
+    </g>
+    <line x1="24" y1="144" x2="236" y2="144" stroke="#2A333D"/>
+    <text class="mono" x="24" y="162" font-size="13" fill="#6B7681">stdio &#183; composes the block</text>
+  </g>
+
+  <!-- channel B &lt;-&gt; C -->
+  <g class="mono" font-size="13">
+    <text x="789" y="184" text-anchor="middle" fill="#F2EFE8">reads &#183; writes</text>
+    <line x1="742" y1="200" x2="836" y2="200" stroke="#97A1AA" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <circle cx="789" cy="224" r="12" fill="#101418" stroke="#F0B429" stroke-width="1.5"/>
+    <text x="789" y="228.5" text-anchor="middle" fill="#F0B429">3</text>
+  </g>
+
+  <!-- column C: sqlite -->
+  <g transform="translate(848 96)">
+    <rect width="288" height="176" rx="10" fill="#1A2129" stroke="#2A333D" stroke-width="1.5"/>
+    <g transform="translate(24 22)">
+      <ellipse cx="12" cy="4" rx="12" ry="4.5" fill="none" stroke="#F0B429" stroke-width="1.8"/>
+      <path d="M 0 4 L 0 20 M 24 4 L 24 20" stroke="#F0B429" stroke-width="1.8" fill="none"/>
+      <path d="M 0 20 A 12 4.5 0 0 0 24 20" stroke="#F0B429" stroke-width="1.8" fill="none"/>
+    </g>
+    <text class="mono" x="60" y="34" font-size="16" fill="#F2EFE8">mnemon.db</text>
+    <g class="mono" font-size="15" fill="#97A1AA">
+      <text x="24" y="70">projects &#183; branch_state</text>
+      <text x="24" y="94">decisions &#183; tasks &#183; session_log</text>
+      <text x="24" y="118">entities &#183; observations</text>
+      <text x="24" y="142">relations</text>
+    </g>
+    <line x1="24" y1="156" x2="264" y2="156" stroke="#2A333D"/>
+    <text class="mono" x="24" y="168" font-size="13" fill="#6B7681">one local file &#183; inspectable</text>
+  </g>
+
+  <!-- footer strip -->
+  <g class="mono" font-size="16" text-anchor="middle">
+    <circle cx="472" cy="338" r="5" fill="#F0B429"/>
+    <text x="486" y="343" text-anchor="start" fill="#97A1AA">session starts oriented</text>
+    <circle cx="700" cy="338" r="5" fill="#F0B429"/>
+    <text x="714" y="343" text-anchor="start" fill="#97A1AA">agent works with full context</text>
+    <circle cx="944" cy="338" r="5" fill="#F0B429"/>
+    <text x="958" y="343" text-anchor="start" fill="#97A1AA">memory persists for next time</text>
+  </g>
+</svg>
