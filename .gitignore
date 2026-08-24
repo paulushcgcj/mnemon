@@ -247,3 +247,4 @@ pyrightconfig.json
 
 # git-cliff
 CHANGES.md
+*.code-workspace
