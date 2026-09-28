@@ -1,5 +1,7 @@
 import aiosqlite
 
+from ..core.constants import FTS_MIGRATION_VERSION, FTS_TABLES, prepare_fts_text
+
 SCHEMA = """
 -- ── Project hierarchy ─────────────────────────────────────────────────────────
 
@@ -108,9 +110,78 @@ CREATE INDEX IF NOT EXISTS idx_entities_project   ON entities(project_id, entity
 CREATE INDEX IF NOT EXISTS idx_observations_entity ON observations(entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_relations_from     ON relations(from_id);
 CREATE INDEX IF NOT EXISTS idx_relations_to       ON relations(to_id);
+
+-- ── Full-text search (FTS5) ──────────────────────────────────────────────────
+
+-- Mirror tables for hybrid search, synced on every write and populated once
+-- by the backfill migration below. `ref` links a row back to its source table
+-- id; entities_fts keeps observation rows under the same ref so scores for
+-- an entity fold together.
+CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(ref UNINDEXED, obs_ref UNINDEXED, content);
+CREATE VIRTUAL TABLE IF NOT EXISTS decisions_fts USING fts5(ref UNINDEXED, title, rationale);
+CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5(ref UNINDEXED, title, notes);
+CREATE VIRTUAL TABLE IF NOT EXISTS sessions_fts USING fts5(ref UNINDEXED, summary);
 """
+
+
+async def backfill_fts(db: aiosqlite.Connection) -> None:
+    """
+    Populate the FTS mirror tables from their source tables.
+
+    Gated on the PRAGMA user_version marker so it runs once per database.
+    A concurrent double-run deletes and re-inserts every row inside one
+    transaction, so it cannot produce duplicates.
+    """
+    async with db.execute("PRAGMA user_version") as cursor:
+        row = await cursor.fetchone()
+    if row is not None and row[0] >= FTS_MIGRATION_VERSION:
+        return
+
+    for table in FTS_TABLES.values():
+        await db.execute(f"DELETE FROM {table}")
+
+    async with db.execute("SELECT id, name FROM entities") as cursor:
+        entity_rows = await cursor.fetchall()
+    await db.executemany(
+        "INSERT INTO entities_fts (ref, obs_ref, content) VALUES (?, NULL, ?)",
+        [(r["id"], prepare_fts_text(r["name"])) for r in entity_rows],
+    )
+
+    async with db.execute("SELECT id, entity_id, content FROM observations") as cursor:
+        observation_rows = await cursor.fetchall()
+    await db.executemany(
+        "INSERT INTO entities_fts (ref, obs_ref, content) VALUES (?, ?, ?)",
+        [(r["entity_id"], r["id"], prepare_fts_text(r["content"])) for r in observation_rows],
+    )
+
+    async with db.execute("SELECT id, title, rationale FROM decisions") as cursor:
+        decision_rows = await cursor.fetchall()
+    await db.executemany(
+        "INSERT INTO decisions_fts (ref, title, rationale) VALUES (?, ?, ?)",
+        [
+            (r["id"], prepare_fts_text(r["title"]), prepare_fts_text(r["rationale"]))
+            for r in decision_rows
+        ],
+    )
+
+    async with db.execute("SELECT id, title, notes FROM tasks") as cursor:
+        task_rows = await cursor.fetchall()
+    await db.executemany(
+        "INSERT INTO tasks_fts (ref, title, notes) VALUES (?, ?, ?)",
+        [(r["id"], prepare_fts_text(r["title"]), prepare_fts_text(r["notes"])) for r in task_rows],
+    )
+
+    async with db.execute("SELECT id, summary FROM session_log") as cursor:
+        session_rows = await cursor.fetchall()
+    await db.executemany(
+        "INSERT INTO sessions_fts (ref, summary) VALUES (?, ?)",
+        [(r["id"], prepare_fts_text(r["summary"])) for r in session_rows],
+    )
+
+    await db.execute(f"PRAGMA user_version = {FTS_MIGRATION_VERSION}")
 
 
 async def run_migrations(db: aiosqlite.Connection) -> None:
     await db.executescript(SCHEMA)
+    await backfill_fts(db)
     await db.commit()

@@ -300,6 +300,15 @@ async def test_memory_search_no_matches(server_db):
     assert "Entities:" not in result
 
 
+async def test_memory_search_max_chars(server_db):
+    project_id = "owner/repo"
+    await server.graph_entity_upsert(project_id, "AuthService", "component", importance=0.8)
+
+    result = await server.memory_search(project_id, "auth", max_chars=100)
+    assert "Search results for 'auth':" in result
+    assert "Entities:" in result
+
+
 async def test_memory_summarize_completed_tasks_alias(server_db):
     project_id = "owner/repo"
     branch = "main"

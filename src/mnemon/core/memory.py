@@ -7,7 +7,14 @@ from .constants import (
     DEFAULT_TASK_STATUS,
     validate_task_status,
 )
-from .graph import search_entities
+from .search import (
+    search_memory as search_memory,  # re-exported: search lives in the search module
+)
+from .search import (
+    sync_decision_fts,
+    sync_session_fts,
+    sync_task_fts,
+)
 
 # ── Project state ─────────────────────────────────────────────────────────────
 
@@ -84,6 +91,8 @@ async def add_decision(
         (project_id, branch, title, rationale),
     ) as cur:
         row = await cur.fetchone()
+        if row is not None:
+            await sync_decision_fts(db, cast(str, row[0]), title, rationale)
         await db.commit()
         return cast(str, row[0]) if row is not None else ""
 
@@ -125,6 +134,8 @@ async def add_task(
         (project_id, branch, title, status, source, notes),
     ) as cur:
         row = await cur.fetchone()
+        if row is not None:
+            await sync_task_fts(db, cast(str, row[0]), title, notes)
         await db.commit()
         return cast(str, row[0]) if row is not None else ""
 
@@ -138,16 +149,20 @@ async def update_task(
     # Validate status
     status = validate_task_status(status)
 
-    result = await db.execute(
+    async with db.execute(
         """
         UPDATE tasks
         SET status = ?, notes = COALESCE(?, notes), updated_at = datetime('now')
         WHERE id = ?
+        RETURNING title, notes
         """,
         (status, notes, task_id),
-    )
-    await db.commit()
-    return result.rowcount > 0
+    ) as cur:
+        row = await cur.fetchone()
+        if row is not None:
+            await sync_task_fts(db, task_id, row["title"], row["notes"])
+        await db.commit()
+        return row is not None
 
 
 async def get_tasks(
@@ -183,11 +198,14 @@ async def add_session_log(
     source: str = DEFAULT_SESSION_LOG_SOURCE,
     sha: str | None = None,
 ) -> None:
-    await db.execute(
-        "INSERT INTO session_log (project_id, branch, summary, source, sha) VALUES (?,?,?,?,?)",
+    async with db.execute(
+        "INSERT INTO session_log (project_id, branch, summary, source, sha) VALUES (?,?,?,?,?) RETURNING id",
         (project_id, branch, summary, source, sha),
-    )
-    await db.commit()
+    ) as cur:
+        row = await cur.fetchone()
+        if row is not None:
+            await sync_session_fts(db, cast(str, row[0]), summary)
+        await db.commit()
 
 
 async def get_recent_sessions(
@@ -205,69 +223,3 @@ async def get_recent_sessions(
         (project_id, branch, limit),
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
-
-
-# ── Cross-category search ─────────────────────────────────────────────────────
-
-
-async def search_memory(
-    db: aiosqlite.Connection,
-    project_id: str,
-    query: str,
-    branch: str | None = None,
-    limit: int = 10,
-) -> dict[str, list[dict[str, Any]]]:
-    """
-    Search across all memory categories: entities, decisions, session log, tasks.
-
-    Each category is branch-filtered (global rows are always included) and
-    capped at ``limit`` results. Returns per-category lists keyed by
-    ``entities``, ``decisions``, ``sessions``, and ``tasks``.
-    """
-    like = f"%{query}%"
-    results: dict[str, list[dict[str, Any]]] = {
-        "entities": [],
-        "decisions": [],
-        "sessions": [],
-        "tasks": [],
-    }
-
-    results["entities"] = await search_entities(db, project_id, query, limit=limit)
-
-    async with db.execute(
-        """
-        SELECT * FROM decisions
-        WHERE project_id = ?
-          AND (branch IS NULL OR ? IS NULL OR branch = ?)
-          AND (title LIKE ? OR rationale LIKE ?)
-        ORDER BY created_at DESC LIMIT ?
-        """,
-        (project_id, branch, branch, like, like, limit),
-    ) as cur:
-        results["decisions"] = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute(
-        """
-        SELECT * FROM session_log
-        WHERE project_id = ?
-          AND (branch IS NULL OR ? IS NULL OR branch = ?)
-          AND summary LIKE ?
-        ORDER BY created_at DESC LIMIT ?
-        """,
-        (project_id, branch, branch, like, limit),
-    ) as cur:
-        results["sessions"] = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute(
-        """
-        SELECT * FROM tasks
-        WHERE project_id = ?
-          AND (branch IS NULL OR ? IS NULL OR branch = ?)
-          AND (title LIKE ? OR notes LIKE ?)
-        ORDER BY updated_at DESC LIMIT ?
-        """,
-        (project_id, branch, branch, like, like, limit),
-    ) as cur:
-        results["tasks"] = [dict(r) for r in await cur.fetchall()]
-
-    return results

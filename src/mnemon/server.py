@@ -472,14 +472,21 @@ async def memory_search(
     query: str,
     branch: str | None = None,
     limit: int = 10,
+    max_chars: int | None = None,
 ) -> str:
     """
     Search across all memory categories: entities, decisions, session log, tasks.
-    Useful when you want to find what Mnemon knows about a topic.
+
+    Results are ranked by hybrid scoring (full-text, substring, graph
+    proximity, and recency signals fused together). ``max_chars`` optionally
+    trims the output by dropping lowest-scored items until the estimated
+    size fits the budget.
     """
     async with get_db() as db:
         await run_migrations(db)
-        results = await search_memory(db, project_id, query, branch=branch, limit=limit)
+        results = await search_memory(
+            db, project_id, query, branch=branch, limit=limit, max_chars=max_chars
+        )
         return _format_search_results(query, results)
 
 
