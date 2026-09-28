@@ -4,6 +4,8 @@ Constants for Mnemon.
 All magic strings and valid value sets should be defined here.
 """
 
+import re
+
 # ── Entity Types ──────────────────────────────────────────────────────────────
 
 ENTITY_TYPES = {
@@ -87,6 +89,43 @@ ENTITY_ICON = {
     "system": "◆",
     "custom": "◇",
 }
+
+# ── Hybrid Search ─────────────────────────────────────────────────────────────
+
+# Reciprocal rank fusion constant: higher values flatten the rank differences
+# between signals (standard RRF tuning value).
+RRF_K = 60
+
+# Cap on rows fetched per signal before ranking, so large stores stay bounded.
+SEARCH_CANDIDATE_LIMIT = 50
+
+# FTS5 mirror tables backing hybrid search, keyed by result category.
+FTS_TABLES = {
+    "entities": "entities_fts",
+    "decisions": "decisions_fts",
+    "tasks": "tasks_fts",
+    "sessions": "sessions_fts",
+}
+
+# PRAGMA user_version marker set after the FTS backfill migration runs once.
+FTS_MIGRATION_VERSION = 1
+
+
+def prepare_fts_text(text: str | None) -> str:
+    """
+    Normalize text for FTS5 indexing and query building.
+
+    Splits camelCase and acronym boundaries into separate words so prefix
+    queries can match them (e.g. 'WasteVolumeController' becomes
+    'Waste Volume Controller'). Returns an empty string for None so callers
+    never need their own null handling.
+    """
+    if not text:
+        return ""
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", text)
+    return text
+
 
 # ── Validation Helpers ────────────────────────────────────────────────────────
 

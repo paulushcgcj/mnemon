@@ -19,6 +19,12 @@ from .constants import (
     validate_entity_type,
     validate_importance,
 )
+from .search import (
+    delete_entity_fts,
+    delete_observation_fts,
+    sync_entity_name_fts,
+    sync_observation_fts,
+)
 
 # ── Entities ──────────────────────────────────────────────────────────────────
 
@@ -48,11 +54,23 @@ async def upsert_entity(
         (project_id, branch, name, entity_type, importance),
     ) as cur:
         row = await cur.fetchone()
+        if row is not None:
+            await sync_entity_name_fts(db, row[0], name)
         await db.commit()
         return cast(str, row[0]) if row is not None else ""
 
 
 async def delete_entity(db: aiosqlite.Connection, project_id: str, name: str) -> bool:
+    async with db.execute(
+        "SELECT id FROM entities WHERE project_id = ? AND name = ?",
+        (project_id, name),
+    ) as cur:
+        row = await cur.fetchone()
+    if row is None:
+        return False
+    entity_id = cast(str, row[0])
+    # Observation FTS rows share the entity's ref, so one delete covers the cascade.
+    await delete_entity_fts(db, entity_id)
     result = await db.execute(
         "DELETE FROM entities WHERE project_id = ? AND name = ?",
         (project_id, name),
@@ -114,11 +132,14 @@ async def add_observation(
         (entity_id, content, source),
     ) as cur:
         row = await cur.fetchone()
+        if row is not None:
+            await sync_observation_fts(db, row[0], entity_id, content)
         await db.commit()
         return cast(str, row[0]) if row is not None else ""
 
 
 async def delete_observation(db: aiosqlite.Connection, observation_id: str) -> bool:
+    await delete_observation_fts(db, observation_id)
     result = await db.execute("DELETE FROM observations WHERE id = ?", (observation_id,))
     await db.commit()
     return result.rowcount > 0
@@ -192,41 +213,8 @@ async def get_relations_for(db: aiosqlite.Connection, entity_id: str) -> list[di
 
 # ── Search ────────────────────────────────────────────────────────────────────
 
-
-async def search_entities(
-    db: aiosqlite.Connection,
-    project_id: str,
-    query: str,
-    entity_type: str | None = None,
-    limit: int = 10,
-) -> list[dict[str, Any]]:
-    """
-    Search entities by name or observation content.
-    Returns entities ranked by importance, with matching observations attached.
-    """
-    like = f"%{query}%"
-    params: list[Any] = [project_id]
-    type_filter = ""
-    if entity_type:
-        type_filter = "AND e.entity_type = ?"
-        params.append(entity_type)
-    params.extend([like, like, limit])
-
-    async with db.execute(
-        f"""
-        SELECT DISTINCT e.*
-        FROM entities e
-        LEFT JOIN observations o ON o.entity_id = e.id
-        WHERE e.project_id = ?
-          {type_filter}
-          AND (e.name LIKE ? OR o.content LIKE ?)
-        ORDER BY e.importance DESC
-        LIMIT ?
-        """,
-        tuple(params),
-    ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
-
+# Re-exported: entity search lives in the hybrid search module now.
+from .search import search_entities as search_entities  # noqa: E402
 
 # ── Full graph read ───────────────────────────────────────────────────────────
 
